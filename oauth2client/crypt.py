@@ -60,17 +60,6 @@ except ImportError:  # pragma: NO COVER
     PyCryptoSigner = None
 
 
-if OpenSSLSigner:
-    Signer = OpenSSLSigner
-    Verifier = OpenSSLVerifier
-elif PyCryptoSigner:  # pragma: NO COVER
-    Signer = PyCryptoSigner
-    Verifier = PyCryptoVerifier
-else:  # pragma: NO COVER
-    Signer = RsaSigner
-    Verifier = RsaVerifier
-
-
 def make_signed_jwt(signer, payload, key_id=None):
     """Make a signed JWT.
 
@@ -246,3 +235,24 @@ def verify_signed_jwt_with_certs(jwt, certs, audience=None):
     _check_audience(payload_dict, audience)
 
     return payload_dict
+
+
+def configure_module():
+    """Configure module-wide variables.
+
+    Not all testing frameworks load modules directly, so we need a way to
+    define these on set up.
+    """
+    global Signer
+    global Verifier
+    if OpenSSLSigner:
+        Signer = OpenSSLSigner
+        Verifier = OpenSSLVerifier
+    elif PyCryptoSigner:  # pragma: NO COVER
+        Signer = PyCryptoSigner
+        Verifier = PyCryptoVerifier
+    else:  # pragma: NO COVER
+        Signer = RsaSigner
+        Verifier = RsaVerifier
+
+configure_module()

@@ -47,6 +47,7 @@ def datafile(filename):
 class ServiceAccountCredentialsTests(unittest2.TestCase):
 
     def setUp(self):
+        crypt.configure_module()
         self.client_id = '123'
         self.service_account_email = 'dummy@google.com'
         self.private_key_id = 'ABCDEF'

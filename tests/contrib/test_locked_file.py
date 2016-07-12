@@ -18,6 +18,7 @@ import sys
 import tempfile
 
 import mock
+import pytest
 import unittest2
 
 from oauth2client.contrib import locked_file
@@ -31,29 +32,29 @@ class TestOpener(unittest2.TestCase):
 
     def test_ctor(self):
         instance, filename = self._make_one()
-        self.assertFalse(instance._locked)
-        self.assertEqual(instance._filename, filename)
-        self.assertEqual(instance._mode, 'r+')
-        self.assertEqual(instance._fallback_mode, 'r')
-        self.assertIsNone(instance._fh)
-        self.assertIsNone(instance._lock_fd)
+        assert instance._locked is False
+        assert instance._filename == filename
+        assert instance._mode == 'r+'
+        assert instance._fallback_mode == 'r'
+        assert instance._fh is None
+        assert instance._lock_fd is None
 
     def test_is_locked(self):
         instance, _ = self._make_one()
-        self.assertFalse(instance.is_locked())
+        assert instance.is_locked() is False
         instance._locked = True
-        self.assertTrue(instance.is_locked())
+        assert instance.is_locked() is True
 
     def test_file_handle(self):
         instance, _ = self._make_one()
-        self.assertIsNone(instance.file_handle())
+        assert instance.file_handle() is None
         fh = mock.Mock()
         instance._fh = fh
-        self.assertEqual(instance.file_handle(), fh)
+        assert instance.file_handle() == fh
 
     def test_filename(self):
         instance, filename = self._make_one()
-        self.assertEqual(instance.filename(), filename)
+        assert instance.filename() == filename
 
     def test_open_and_lock(self):
         instance, _ = self._make_one()
@@ -74,9 +75,9 @@ class TestPosixOpener(TestOpener):
         instance, _ = self._make_one()
         instance.open_and_lock(1, 1)
 
-        self.assertTrue(instance.is_locked())
-        self.assertIsNotNone(instance.file_handle())
-        with self.assertRaises(locked_file.AlreadyLockedException):
+        assert instance.is_locked() is True
+        assert instance.file_handle() is not None
+        with pytest.raises(locked_file.AlreadyLockedException):
             instance.open_and_lock(1, 1)
 
     @mock.patch('oauth2client.contrib.locked_file.open', create=True)
@@ -88,8 +89,8 @@ class TestPosixOpener(TestOpener):
         mock_open.side_effect = [IOError(errno.ENOENT, '')]
         instance.open_and_lock(1, 1)
 
-        self.assertIsNone(instance.file_handle())
-        self.assertTrue(instance.is_locked())
+        assert instance.file_handle() is None
+        assert instance.is_locked() is True
 
     @mock.patch('oauth2client.contrib.locked_file.open', create=True)
     def test_lock_non_access_error(self, mock_open):
@@ -98,8 +99,8 @@ class TestPosixOpener(TestOpener):
         mock_open.side_effect = [IOError(errno.EACCES, ''), fh_mock]
         instance.open_and_lock(1, 1)
 
-        self.assertEqual(instance.file_handle(), fh_mock)
-        self.assertFalse(instance.is_locked())
+        assert instance.file_handle() == fh_mock
+        assert instance.is_locked() is False
 
     @mock.patch('oauth2client.contrib.locked_file.open', create=True)
     def test_lock_unexpected_error(self, mock_open):
@@ -107,7 +108,7 @@ class TestPosixOpener(TestOpener):
 
         with mock.patch('os.open') as mock_os_open:
             mock_os_open.side_effect = [OSError(errno.EPERM, '')]
-            with self.assertRaises(OSError):
+            with pytest.raises(OSError):
                 instance.open_and_lock(1, 1)
 
     @mock.patch('oauth2client.contrib.locked_file.open', create=True)
@@ -122,8 +123,8 @@ class TestPosixOpener(TestOpener):
             # Raising EEXIST should cause it to try to retry locking.
             mock_os_open.side_effect = [OSError(errno.EEXIST, '')]
             instance.open_and_lock(1, 1)
-            self.assertFalse(instance.is_locked())
-            self.assertTrue(mock_logger.warn.called)
+            assert instance.is_locked() is False
+            assert mock_logger.warn.called is True
 
     @mock.patch('oauth2client.contrib.locked_file.open', create=True)
     @mock.patch('oauth2client.contrib.locked_file.logger')
@@ -140,9 +141,9 @@ class TestPosixOpener(TestOpener):
             # Raising EEXIST should cause it to try to retry locking.
             mock_os_open.side_effect = [OSError(errno.EEXIST, '')]
             instance.open_and_lock(1, 1)
-            self.assertFalse(instance.is_locked())
-            self.assertTrue(mock_logger.warn.called)
-            self.assertEqual(instance.file_handle(), fh_mock)
+            assert instance.is_locked() is False
+            assert mock_logger.warn.called is True
+            assert instance.file_handle() == fh_mock
 
     @mock.patch('oauth2client.contrib.locked_file.open', create=True)
     @mock.patch('time.time')
@@ -159,7 +160,7 @@ class TestPosixOpener(TestOpener):
                 OSError(errno.EEXIST, ''), mock.Mock()]
             instance.open_and_lock(10, 1)
             print(mock_os_open.call_args_list)
-            self.assertTrue(instance.is_locked())
+            assert instance.is_locked() is True
             mock_sleep.assert_called_with(1)
 
     @mock.patch('oauth2client.contrib.locked_file.os')
@@ -171,10 +172,10 @@ class TestPosixOpener(TestOpener):
 
         instance.unlock_and_close()
 
-        self.assertFalse(instance.is_locked())
+        assert instance.is_locked() is False
         os_mock.close.assert_called_once_with(lock_fd_mock)
-        self.assertTrue(os_mock.unlink.called)
-        self.assertTrue(instance._fh.close.called)
+        assert os_mock.unlink.called is True
+        assert instance._fh.close.called is True
 
 
 class TestLockedFile(unittest2.TestCase):
@@ -221,17 +222,17 @@ class TestLockedFile(unittest2.TestCase):
     def test_filename(self):
         instance, opener = self._make_one()
         opener._filename = 'some file'
-        self.assertEqual(instance.filename(), 'some file')
+        assert instance.filename() == 'some file'
 
     def test_file_handle(self):
         instance, opener = self._make_one()
-        self.assertEqual(instance.file_handle(), opener.file_handle())
-        self.assertTrue(opener.file_handle.called)
+        assert instance.file_handle() == opener.file_handle()
+        assert opener.file_handle.called is True
 
     def test_is_locked(self):
         instance, opener = self._make_one()
-        self.assertEqual(instance.is_locked(), opener.is_locked())
-        self.assertTrue(opener.is_locked.called)
+        assert instance.is_locked() == opener.is_locked()
+        assert opener.is_locked.called is True
 
     def test_open_and_lock(self):
         instance, opener = self._make_one()

@@ -17,6 +17,7 @@
 import base64
 
 import mock
+import pytest
 import unittest2
 
 from oauth2client._helpers import _to_bytes
@@ -41,10 +42,10 @@ class Test_generate_token(unittest2.TestCase):
 
     def test_bad_positional(self):
         # Need 2 positional arguments.
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             xsrfutil.generate_token(None)
         # At most 2 positional arguments.
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             xsrfutil.generate_token(None, None, None)
 
     def test_it(self):
@@ -67,13 +68,13 @@ class Test_generate_token(unittest2.TestCase):
                 mock.call.update(xsrfutil.DELIMITER),
                 mock.call.update(_to_bytes(str(TEST_TIME))),
             ]
-            self.assertEqual(digester.method_calls, expected_digest_calls)
+            assert digester.method_calls == expected_digest_calls
 
             expected_token_as_bytes = (digest + xsrfutil.DELIMITER +
                                        _to_bytes(str(TEST_TIME)))
             expected_token = base64.urlsafe_b64encode(
                 expected_token_as_bytes)
-            self.assertEqual(token, expected_token)
+            assert token == expected_token
 
     def test_with_system_time(self):
         digest = b'foobar'
@@ -101,38 +102,38 @@ class Test_generate_token(unittest2.TestCase):
                     mock.call.update(xsrfutil.DELIMITER),
                     mock.call.update(_to_bytes(str(int(curr_time)))),
                 ]
-                self.assertEqual(digester.method_calls, expected_digest_calls)
+                assert digester.method_calls == expected_digest_calls
 
                 expected_token_as_bytes = (digest + xsrfutil.DELIMITER +
                                            _to_bytes(str(int(curr_time))))
                 expected_token = base64.urlsafe_b64encode(
                     expected_token_as_bytes)
-                self.assertEqual(token, expected_token)
+                assert token == expected_token
 
 
 class Test_validate_token(unittest2.TestCase):
 
     def test_bad_positional(self):
         # Need 3 positional arguments.
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             xsrfutil.validate_token(None, None)
         # At most 3 positional arguments.
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             xsrfutil.validate_token(None, None, None, None)
 
     def test_no_token(self):
         key = token = user_id = None
-        self.assertFalse(xsrfutil.validate_token(key, token, user_id))
+        assert xsrfutil.validate_token(key, token, user_id) is False
 
     def test_token_not_valid_base64(self):
         key = user_id = None
         token = b'a'  # Bad padding
-        self.assertFalse(xsrfutil.validate_token(key, token, user_id))
+        assert xsrfutil.validate_token(key, token, user_id) is False
 
     def test_token_non_integer(self):
         key = user_id = None
         token = base64.b64encode(b'abc' + xsrfutil.DELIMITER + b'xyz')
-        self.assertFalse(xsrfutil.validate_token(key, token, user_id))
+        assert xsrfutil.validate_token(key, token, user_id) is False
 
     def test_token_too_old_implicit_current_time(self):
         token_time = 123456789
@@ -142,7 +143,7 @@ class Test_validate_token(unittest2.TestCase):
         token = base64.b64encode(_to_bytes(str(token_time)))
         with mock.patch('oauth2client.contrib.xsrfutil.time') as time:
             time.time = mock.MagicMock(name='time', return_value=curr_time)
-            self.assertFalse(xsrfutil.validate_token(key, token, user_id))
+            assert xsrfutil.validate_token(key, token, user_id) is False
             time.time.assert_called_once_with()
 
     def test_token_too_old_explicit_current_time(self):
@@ -151,8 +152,8 @@ class Test_validate_token(unittest2.TestCase):
 
         key = user_id = None
         token = base64.b64encode(_to_bytes(str(token_time)))
-        self.assertFalse(xsrfutil.validate_token(key, token, user_id,
-                                                 current_time=curr_time))
+        assert xsrfutil.validate_token(key, token, user_id,
+                                       current_time=curr_time) is False
 
     def test_token_length_differs_from_generated(self):
         token_time = 123456789
@@ -165,13 +166,13 @@ class Test_validate_token(unittest2.TestCase):
         token = base64.b64encode(_to_bytes(str(token_time)))
         generated_token = b'a'
         # Make sure the token length comparison will fail.
-        self.assertNotEqual(len(token), len(generated_token))
+        assert len(token) != len(generated_token)
 
         with mock.patch('oauth2client.contrib.xsrfutil.generate_token',
                         return_value=generated_token) as gen_tok:
-            self.assertFalse(xsrfutil.validate_token(key, token, user_id,
-                                                     current_time=curr_time,
-                                                     action_id=action_id))
+            assert xsrfutil.validate_token(key, token, user_id,
+                                           current_time=curr_time,
+                                           action_id=action_id) is False
             gen_tok.assert_called_once_with(key, user_id, action_id=action_id,
                                             when=token_time)
 
@@ -188,14 +189,14 @@ class Test_validate_token(unittest2.TestCase):
         generated_token = b'M' * 12
         # Make sure the token length comparison will succeed, but the token
         # comparison will fail.
-        self.assertEqual(len(token), len(generated_token))
-        self.assertNotEqual(token, generated_token)
+        assert len(token) == len(generated_token)
+        assert token != generated_token
 
         with mock.patch('oauth2client.contrib.xsrfutil.generate_token',
                         return_value=generated_token) as gen_tok:
-            self.assertFalse(xsrfutil.validate_token(key, token, user_id,
-                                                     current_time=curr_time,
-                                                     action_id=action_id))
+            assert xsrfutil.validate_token(key, token, user_id,
+                                           current_time=curr_time,
+                                           action_id=action_id) is False
             gen_tok.assert_called_once_with(key, user_id, action_id=action_id,
                                             when=token_time)
 
@@ -210,9 +211,9 @@ class Test_validate_token(unittest2.TestCase):
         token = base64.b64encode(_to_bytes(str(token_time)))
         with mock.patch('oauth2client.contrib.xsrfutil.generate_token',
                         return_value=token) as gen_tok:
-            self.assertTrue(xsrfutil.validate_token(key, token, user_id,
-                                                    current_time=curr_time,
-                                                    action_id=action_id))
+            assert xsrfutil.validate_token(key, token, user_id,
+                                           current_time=curr_time,
+                                           action_id=action_id) is True
             gen_tok.assert_called_once_with(key, user_id, action_id=action_id,
                                             when=token_time)
 
@@ -222,71 +223,52 @@ class XsrfUtilTests(unittest2.TestCase):
 
     def testGenerateAndValidateToken(self):
         """Test generating and validating a token."""
-        token = xsrfutil.generate_token(TEST_KEY,
-                                        TEST_USER_ID_1,
+        token = xsrfutil.generate_token(TEST_KEY, TEST_USER_ID_1,
                                         action_id=TEST_ACTION_ID_1,
                                         when=TEST_TIME)
 
         # Check that the token is considered valid when it should be.
-        self.assertTrue(xsrfutil.validate_token(TEST_KEY,
-                                                token,
-                                                TEST_USER_ID_1,
-                                                action_id=TEST_ACTION_ID_1,
-                                                current_time=TEST_TIME))
+        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_1,
+                                       current_time=TEST_TIME) is True
 
         # Should still be valid 15 minutes later.
         later15mins = TEST_TIME + 15 * 60
-        self.assertTrue(xsrfutil.validate_token(TEST_KEY,
-                                                token,
-                                                TEST_USER_ID_1,
-                                                action_id=TEST_ACTION_ID_1,
-                                                current_time=later15mins))
+        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_1,
+                                       current_time=later15mins) is True
 
         # But not if beyond the timeout.
         later2hours = TEST_TIME + 2 * 60 * 60
-        self.assertFalse(xsrfutil.validate_token(TEST_KEY,
-                                                 token,
-                                                 TEST_USER_ID_1,
-                                                 action_id=TEST_ACTION_ID_1,
-                                                 current_time=later2hours))
+        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_1,
+                                       current_time=later2hours) is False
 
         # Or if the key is different.
-        self.assertFalse(xsrfutil.validate_token('another key',
-                                                 token,
-                                                 TEST_USER_ID_1,
-                                                 action_id=TEST_ACTION_ID_1,
-                                                 current_time=later15mins))
+        assert xsrfutil.validate_token('another key', token, TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_1,
+                                       current_time=later15mins) is False
 
         # Or the user ID....
-        self.assertFalse(xsrfutil.validate_token(TEST_KEY,
-                                                 token,
-                                                 TEST_USER_ID_2,
-                                                 action_id=TEST_ACTION_ID_1,
-                                                 current_time=later15mins))
+        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_2,
+                                       action_id=TEST_ACTION_ID_1,
+                                       current_time=later15mins) is False
 
         # Or the action ID...
-        self.assertFalse(xsrfutil.validate_token(TEST_KEY,
-                                                 token,
-                                                 TEST_USER_ID_1,
-                                                 action_id=TEST_ACTION_ID_2,
-                                                 current_time=later15mins))
+        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_2,
+                                       current_time=later15mins) is False
 
         # Invalid when truncated
-        self.assertFalse(xsrfutil.validate_token(TEST_KEY,
-                                                 token[:-1],
-                                                 TEST_USER_ID_1,
-                                                 action_id=TEST_ACTION_ID_1,
-                                                 current_time=later15mins))
+        assert xsrfutil.validate_token(TEST_KEY, token[:-1], TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_1,
+                                       current_time=later15mins) is False
 
         # Invalid with extra garbage
-        self.assertFalse(xsrfutil.validate_token(TEST_KEY,
-                                                 token + b'x',
-                                                 TEST_USER_ID_1,
-                                                 action_id=TEST_ACTION_ID_1,
-                                                 current_time=later15mins))
+        assert xsrfutil.validate_token(TEST_KEY, token + b'x', TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_1,
+                                       current_time=later15mins) is False
 
         # Invalid with token of None
-        self.assertFalse(xsrfutil.validate_token(TEST_KEY,
-                                                 None,
-                                                 TEST_USER_ID_1,
-                                                 action_id=TEST_ACTION_ID_1))
+        assert xsrfutil.validate_token(TEST_KEY, None, TEST_USER_ID_1,
+                                       action_id=TEST_ACTION_ID_1) is False

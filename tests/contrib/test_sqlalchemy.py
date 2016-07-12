@@ -58,13 +58,13 @@ class TestSQLAlchemyStorage(unittest2.TestCase):
         session.commit()
 
     def compare_credentials(self, result):
-        self.assertEqual(result.access_token, self.credentials.access_token)
-        self.assertEqual(result.client_id, self.credentials.client_id)
-        self.assertEqual(result.client_secret, self.credentials.client_secret)
-        self.assertEqual(result.refresh_token, self.credentials.refresh_token)
-        self.assertEqual(result.token_expiry, self.credentials.token_expiry)
-        self.assertEqual(result.token_uri, self.credentials.token_uri)
-        self.assertEqual(result.user_agent, self.credentials.user_agent)
+        assert result.access_token == self.credentials.access_token
+        assert result.client_id == self.credentials.client_id
+        assert result.client_secret == self.credentials.client_secret
+        assert result.refresh_token == self.credentials.refresh_token
+        assert result.token_expiry == self.credentials.token_expiry
+        assert result.token_uri == self.credentials.token_uri
+        assert result.user_agent == self.credentials.user_agent
 
     def test_get(self):
         session = self.session()
@@ -107,7 +107,7 @@ class TestSQLAlchemyStorage(unittest2.TestCase):
         session.commit()
 
         query = session.query(DummyModel).filter_by(key=1)
-        self.assertIsNotNone(query.first())
+        assert query.first() is not None
         oauth2client.contrib.sqlalchemy.Storage(
             session=session,
             model_class=DummyModel,
@@ -116,4 +116,4 @@ class TestSQLAlchemyStorage(unittest2.TestCase):
             property_name='credentials',
         ).delete()
         session.commit()
-        self.assertIsNone(query.first())
+        assert query.first() is None

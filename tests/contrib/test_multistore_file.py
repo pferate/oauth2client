@@ -21,6 +21,7 @@ import stat
 import tempfile
 
 import mock
+import pytest
 import unittest2
 
 from oauth2client import util
@@ -70,9 +71,9 @@ class Test__dict_to_tuple_key(unittest2.TestCase):
             (key3, val3),
             (key1, val1),
         )
-        self.assertTupleEqual(expected_output, tuple_key)
+        assert expected_output == tuple_key
         # check we get the original dictionary back
-        self.assertDictEqual(test_dict, dict(tuple_key))
+        assert test_dict == dict(tuple_key)
 
 
 class MultistoreFileTests(unittest2.TestCase):
@@ -117,7 +118,7 @@ class MultistoreFileTests(unittest2.TestCase):
                         filename, error_class, error_code)
                     # Should not raise though the underlying file class did.
                     multistore._lock()
-                    self.assertTrue(multistore._file.open_and_lock_called)
+                    assert multistore._file.open_and_lock_called is True
         finally:
             os.unlink(filename)
 
@@ -128,9 +129,9 @@ class MultistoreFileTests(unittest2.TestCase):
         try:
             multistore = multistore_file._MultiStore(filename)
             multistore._file = _MockLockedFile(filename, IOError, errno.EBUSY)
-            with self.assertRaises(IOError):
+            with pytest.raises(IOError):
                 multistore._lock()
-            self.assertTrue(multistore._file.open_and_lock_called)
+            assert multistore._file.open_and_lock_called is True
         finally:
             os.unlink(filename)
 
@@ -148,7 +149,7 @@ class MultistoreFileTests(unittest2.TestCase):
 
         store.put(credentials)
         if os.name == 'posix':  # pragma: NO COVER
-            self.assertTrue(store._multistore._read_only)
+            assert store._multistore._read_only is True
         os.chmod(FILENAME, 0o600)
 
     def test_read_only_file_fail_lock_no_warning(self):
@@ -160,7 +161,7 @@ class MultistoreFileTests(unittest2.TestCase):
         with mock.patch.object(multistore_file.logger, 'warn') as mock_warn:
             multistore._warn_on_readonly = False
             multistore._lock()
-            self.assertFalse(mock_warn.called)
+            assert mock_warn.called is False
 
     def test_lock_skip_refresh(self):
         with open(FILENAME, 'w') as f:
@@ -175,7 +176,7 @@ class MultistoreFileTests(unittest2.TestCase):
         with refresh_patch as refresh_mock:
             multistore._data = {}
             multistore._lock()
-            self.assertFalse(refresh_mock.called)
+            assert refresh_mock.called is False
 
     @unittest2.skipIf(not hasattr(os, 'symlink'), 'No symlink available')
     def test_multistore_no_symbolic_link_files(self):
@@ -187,7 +188,7 @@ class MultistoreFileTests(unittest2.TestCase):
             'user-agent/1.0',
             ['some-scope', 'some-other-scope'])
         try:
-            with self.assertRaises(
+            with pytest.raises(
                     locked_file.CredentialsFileSymbolicLinkError):
                 store.get()
         finally:
@@ -201,7 +202,7 @@ class MultistoreFileTests(unittest2.TestCase):
             ['some-scope', 'some-other-scope'])
 
         credentials = store.get()
-        self.assertEquals(None, credentials)
+        assert credentials is None
 
     def test_multistore_file(self):
         credentials = self._create_test_credentials()
@@ -216,18 +217,17 @@ class MultistoreFileTests(unittest2.TestCase):
         store.put(credentials)
         credentials = store.get()
 
-        self.assertNotEquals(None, credentials)
-        self.assertEquals('foo', credentials.access_token)
+        assert credentials is not None
+        assert 'foo' == credentials.access_token
 
         # Delete credentials
         store.delete()
         credentials = store.get()
 
-        self.assertEquals(None, credentials)
+        assert credentials is None
 
         if os.name == 'posix':  # pragma: NO COVER
-            self.assertEquals(
-                0o600, stat.S_IMODE(os.stat(FILENAME).st_mode))
+            assert 0o600 == stat.S_IMODE(os.stat(FILENAME).st_mode)
 
     def test_multistore_file_custom_key(self):
         credentials = self._create_test_credentials()
@@ -239,14 +239,13 @@ class MultistoreFileTests(unittest2.TestCase):
         store.put(credentials)
         stored_credentials = store.get()
 
-        self.assertNotEquals(None, stored_credentials)
-        self.assertEqual(credentials.access_token,
-                         stored_credentials.access_token)
+        assert stored_credentials is not None
+        assert credentials.access_token == stored_credentials.access_token
 
         store.delete()
         stored_credentials = store.get()
 
-        self.assertEquals(None, stored_credentials)
+        assert stored_credentials is None
 
     def test_multistore_file_custom_string_key(self):
         credentials = self._create_test_credentials()
@@ -258,22 +257,20 @@ class MultistoreFileTests(unittest2.TestCase):
         store.put(credentials)
         stored_credentials = store.get()
 
-        self.assertNotEquals(None, stored_credentials)
-        self.assertEqual(credentials.access_token,
-                         stored_credentials.access_token)
+        assert stored_credentials is not None
+        assert credentials.access_token == stored_credentials.access_token
 
         # try retrieving with a dictionary
         multistore_file.get_credential_storage_custom_string_key(
             FILENAME, {'key': 'mykey'})
         stored_credentials = store.get()
-        self.assertNotEquals(None, stored_credentials)
-        self.assertEqual(credentials.access_token,
-                         stored_credentials.access_token)
+        assert stored_credentials is not None
+        assert credentials.access_token == stored_credentials.access_token
 
         store.delete()
         stored_credentials = store.get()
 
-        self.assertEquals(None, stored_credentials)
+        assert stored_credentials is None
 
     def test_multistore_file_backwards_compatibility(self):
         credentials = self._create_test_credentials()
@@ -292,13 +289,12 @@ class MultistoreFileTests(unittest2.TestCase):
             FILENAME, key)
         stored_credentials = store.get()
 
-        self.assertEqual(credentials.access_token,
-                         stored_credentials.access_token)
+        assert credentials.access_token == stored_credentials.access_token
 
     def test_multistore_file_get_all_keys(self):
         # start with no keys
         keys = multistore_file.get_all_credential_keys(FILENAME)
-        self.assertEquals([], keys)
+        assert [] == keys
 
         # store credentials
         credentials = self._create_test_credentials(client_id='client1')
@@ -308,7 +304,7 @@ class MultistoreFileTests(unittest2.TestCase):
         store1.put(credentials)
 
         keys = multistore_file.get_all_credential_keys(FILENAME)
-        self.assertEquals([custom_key], keys)
+        assert [custom_key] == keys
 
         # store more credentials
         credentials = self._create_test_credentials(client_id='client2')
@@ -318,15 +314,15 @@ class MultistoreFileTests(unittest2.TestCase):
         store2.put(credentials)
 
         keys = multistore_file.get_all_credential_keys(FILENAME)
-        self.assertEquals(2, len(keys))
-        self.assertTrue(custom_key in keys)
-        self.assertTrue({'key': string_key} in keys)
+        assert len(keys) == 2
+        assert custom_key in keys
+        assert {'key': string_key} in keys
 
         # back to no keys
         store1.delete()
         store2.delete()
         keys = multistore_file.get_all_credential_keys(FILENAME)
-        self.assertEquals([], keys)
+        assert [] == keys
 
     def _refresh_data_cache_helper(self):
         multistore = multistore_file._MultiStore(FILENAME)
@@ -340,8 +336,8 @@ class MultistoreFileTests(unittest2.TestCase):
         with json_patch as json_mock:
             json_mock.side_effect = ValueError('')
             multistore._refresh_data_cache()
-            self.assertTrue(json_mock.called)
-            self.assertEqual(multistore._data, {})
+            assert json_mock.called is True
+            assert multistore._data == {}
 
     def test__refresh_data_cache_bad_version(self):
         multistore, json_patch = self._refresh_data_cache_helper()
@@ -349,17 +345,17 @@ class MultistoreFileTests(unittest2.TestCase):
         with json_patch as json_mock:
             json_mock.return_value = {}
             multistore._refresh_data_cache()
-            self.assertTrue(json_mock.called)
-            self.assertEqual(multistore._data, {})
+            assert json_mock.called is True
+            assert multistore._data == {}
 
     def test__refresh_data_cache_newer_version(self):
         multistore, json_patch = self._refresh_data_cache_helper()
 
         with json_patch as json_mock:
             json_mock.return_value = {'file_version': 5}
-            with self.assertRaises(multistore_file.NewerCredentialStoreError):
+            with pytest.raises(multistore_file.NewerCredentialStoreError):
                 multistore._refresh_data_cache()
-            self.assertTrue(json_mock.called)
+            assert json_mock.called is True
 
     def test__refresh_data_cache_bad_credentials(self):
         multistore, json_patch = self._refresh_data_cache_helper()
@@ -371,8 +367,8 @@ class MultistoreFileTests(unittest2.TestCase):
                     {'lol': 'this is a bad credential object.'}
                 ]}
             multistore._refresh_data_cache()
-            self.assertTrue(json_mock.called)
-            self.assertEqual(multistore._data, {})
+            assert json_mock.called is True
+            assert multistore._data == {}
 
     def test__delete_credential_nonexistent(self):
         multistore = multistore_file._MultiStore(FILENAME)
@@ -380,4 +376,4 @@ class MultistoreFileTests(unittest2.TestCase):
         with mock.patch.object(multistore, '_write') as write_mock:
             multistore._data = {}
             multistore._delete_credential('nonexistent_key')
-            self.assertTrue(write_mock.called)
+            assert write_mock.called is True

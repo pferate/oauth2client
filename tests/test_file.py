@@ -25,6 +25,7 @@ import pickle
 import stat
 import tempfile
 
+import pytest
 import six
 from six.moves import http_client
 import unittest2
@@ -78,7 +79,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
     def test_non_existent_file_storage(self):
         s = file.Storage(FILENAME)
         credentials = s.get()
-        self.assertEquals(None, credentials)
+        assert credentials is None
 
     @unittest2.skipIf(not hasattr(os, 'symlink'), 'No symlink available')
     def test_no_sym_link_credentials(self):
@@ -86,7 +87,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
         os.symlink(FILENAME, SYMFILENAME)
         s = file.Storage(SYMFILENAME)
         try:
-            with self.assertRaises(file.CredentialsFileSymbolicLinkError):
+            with pytest.raises(file.CredentialsFileSymbolicLinkError):
                 s.get()
         finally:
             os.unlink(SYMFILENAME)
@@ -103,16 +104,16 @@ class OAuth2ClientFileTests(unittest2.TestCase):
         # to read and write credentials as pickled objects has been removed.
         s = file.Storage(FILENAME)
         read_credentials = s.get()
-        self.assertEquals(None, read_credentials)
+        assert read_credentials is None
 
         # Now write it back out and confirm it has been rewritten as JSON
         s.put(credentials)
         with open(FILENAME) as f:
             data = json.load(f)
 
-        self.assertEquals(data['access_token'], 'foo')
-        self.assertEquals(data['_class'], 'OAuth2Credentials')
-        self.assertEquals(data['_module'], OAuth2Credentials.__module__)
+        assert data['access_token'] == 'foo'
+        assert data['_class'] == 'OAuth2Credentials'
+        assert data['_module'] == OAuth2Credentials.__module__
 
     def test_token_refresh_store_expired(self):
         expiration = (datetime.datetime.utcnow() -
@@ -133,7 +134,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
         ])
 
         credentials._refresh(http.request)
-        self.assertEquals(credentials.access_token, access_token)
+        assert credentials.access_token == access_token
 
     def test_token_refresh_store_expires_soon(self):
         # Tests the case where an access token that is valid when it is read
@@ -164,7 +165,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
 
         credentials.authorize(http)
         http.request('https://example.com')
-        self.assertEqual(credentials.access_token, access_token)
+        assert credentials.access_token == access_token
 
     def test_token_refresh_good_store(self):
         expiration = (datetime.datetime.utcnow() +
@@ -179,7 +180,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
         s.put(new_cred)
 
         credentials._refresh(None)
-        self.assertEquals(credentials.access_token, 'bar')
+        assert credentials.access_token == 'bar'
 
     def test_token_refresh_stream_body(self):
         expiration = (datetime.datetime.utcnow() +
@@ -210,8 +211,8 @@ class OAuth2ClientFileTests(unittest2.TestCase):
 
         credentials.authorize(http)
         _, content = http.request('https://example.com', body=body)
-        self.assertEqual(content, 'streaming body')
-        self.assertEqual(credentials.access_token, valid_access_token)
+        assert content == 'streaming body'
+        assert credentials.access_token == valid_access_token
 
     def test_credentials_delete(self):
         credentials = self._create_test_credentials()
@@ -219,10 +220,10 @@ class OAuth2ClientFileTests(unittest2.TestCase):
         s = file.Storage(FILENAME)
         s.put(credentials)
         credentials = s.get()
-        self.assertNotEquals(None, credentials)
+        assert credentials is not None
         s.delete()
         credentials = s.get()
-        self.assertEquals(None, credentials)
+        assert credentials is None
 
     def test_access_token_credentials(self):
         access_token = 'foo'
@@ -234,11 +235,12 @@ class OAuth2ClientFileTests(unittest2.TestCase):
         credentials = s.put(credentials)
         credentials = s.get()
 
-        self.assertNotEquals(None, credentials)
-        self.assertEquals('foo', credentials.access_token)
+        assert credentials is not None
+        assert 'foo' == credentials.access_token
 
-        self.assertTrue(os.path.exists(FILENAME))
+        assert os.path.exists(FILENAME)
 
         if os.name == 'posix':  # pragma: NO COVER
             mode = os.stat(FILENAME).st_mode
-            self.assertEquals('0o600', oct(stat.S_IMODE(mode)))
+            assert '0o600' == oct(stat.S_IMODE(mode))
+            assert 0o600 == stat.S_IMODE(mode)

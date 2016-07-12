@@ -17,6 +17,7 @@ import sys
 import threading
 
 import mock
+import pytest
 from six.moves.urllib import request
 import unittest2
 
@@ -45,10 +46,10 @@ class TestClientRedirectServer(unittest2.TestCase):
         t.setDaemon(True)
         t.start()
         f = request.urlopen(url)
-        self.assertTrue(f.read())
+        assert f.read()
         t.join()
         httpd.server_close()
-        self.assertEqual(httpd.query_params.get('code'), code)
+        assert httpd.query_params.get('code') == code
 
 
 class TestRunFlow(unittest2.TestCase):
@@ -80,8 +81,8 @@ class TestRunFlow(unittest2.TestCase):
         # Successful exchange.
         returned_credentials = tools.run_flow(self.flow, self.storage)
 
-        self.assertEqual(self.credentials, returned_credentials)
-        self.assertEqual(self.flow.redirect_uri, OOB_CALLBACK_URN)
+        assert self.credentials == returned_credentials
+        assert self.flow.redirect_uri == OOB_CALLBACK_URN
         self.flow.step2_exchange.assert_called_once_with(
             'auth_code', http=None)
         self.storage.put.assert_called_once_with(self.credentials)
@@ -97,8 +98,8 @@ class TestRunFlow(unittest2.TestCase):
         returned_credentials = tools.run_flow(
             self.flow, self.storage, flags=self.flags)
 
-        self.assertEqual(self.credentials, returned_credentials)
-        self.assertEqual(self.flow.redirect_uri, OOB_CALLBACK_URN)
+        assert self.credentials == returned_credentials
+        assert self.flow.redirect_uri == OOB_CALLBACK_URN
         self.flow.step2_exchange.assert_called_once_with(
             'auth_code', http=None)
 
@@ -110,7 +111,7 @@ class TestRunFlow(unittest2.TestCase):
         self.flow.step2_exchange.side_effect = FlowExchangeError()
 
         # Error while exchanging.
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             tools.run_flow(self.flow, self.storage, flags=self.flags)
 
         self.flow.step2_exchange.assert_called_once_with(
@@ -128,13 +129,13 @@ class TestRunFlow(unittest2.TestCase):
         returned_credentials = tools.run_flow(
             self.flow, self.storage, flags=self.server_flags)
 
-        self.assertEqual(self.credentials, returned_credentials)
-        self.assertEqual(self.flow.redirect_uri, 'http://localhost:8080/')
+        assert self.credentials == returned_credentials
+        assert self.flow.redirect_uri == 'http://localhost:8080/'
         self.flow.step2_exchange.assert_called_once_with(
             'auth_code', http=None)
         self.storage.put.assert_called_once_with(self.credentials)
         self.credentials.set_store.assert_called_once_with(self.storage)
-        self.assertTrue(self.server.handle_request.called)
+        assert self.server.handle_request.called is True
         webbrowser_open_mock.assert_called_once_with(
             'http://example.com/auth', autoraise=True, new=1)
 
@@ -147,10 +148,10 @@ class TestRunFlow(unittest2.TestCase):
         self.server.query_params = {'error': 'any error'}
 
         # Exchange returned an error code.
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             tools.run_flow(self.flow, self.storage, flags=self.server_flags)
 
-        self.assertTrue(self.server.handle_request.called)
+        assert self.server.handle_request.called is True
 
     @mock.patch('oauth2client.tools.logging')
     @mock.patch('oauth2client.tools.ClientRedirectServer')
@@ -161,10 +162,10 @@ class TestRunFlow(unittest2.TestCase):
         self.server.query_params = {}
 
         # No code found in response
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             tools.run_flow(self.flow, self.storage, flags=self.server_flags)
 
-        self.assertTrue(self.server.handle_request.called)
+        assert self.server.handle_request.called is True
 
     @mock.patch('oauth2client.tools.logging')
     @mock.patch('oauth2client.tools.ClientRedirectServer')
@@ -179,14 +180,14 @@ class TestRunFlow(unittest2.TestCase):
         returned_credentials = tools.run_flow(
             self.flow, self.storage, flags=self.server_flags)
 
-        self.assertEqual(self.credentials, returned_credentials)
-        self.assertEqual(self.flow.redirect_uri, OOB_CALLBACK_URN)
+        assert self.credentials == returned_credentials
+        assert self.flow.redirect_uri == OOB_CALLBACK_URN
         self.flow.step2_exchange.assert_called_once_with(
             'auth_code', http=None)
-        self.assertTrue(server_ctor_mock.called)
-        self.assertFalse(self.server.handle_request.called)
+        assert server_ctor_mock.called is True
+        assert self.server.handle_request.called is False
 
 
 class TestMessageIfMissing(unittest2.TestCase):
     def test_message_if_missing(self):
-        self.assertIn('somefile.txt', tools.message_if_missing('somefile.txt'))
+        assert 'somefile.txt' in tools.message_if_missing('somefile.txt')

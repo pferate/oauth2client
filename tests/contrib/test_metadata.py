@@ -17,6 +17,7 @@ import json
 
 import httplib2
 import mock
+import pytest
 from six.moves import http_client
 import unittest2
 
@@ -44,25 +45,19 @@ class TestMetadata(unittest2.TestCase):
     def test_get_success_json(self):
         http_request = request_mock(
             http_client.OK, 'application/json', json.dumps(DATA))
-        self.assertEqual(
-            _metadata.get(http_request, PATH),
-            DATA
-        )
+        assert _metadata.get(http_request, PATH) == DATA
         http_request.assert_called_once_with(EXPECTED_URL, **EXPECTED_KWARGS)
 
     def test_get_success_string(self):
         http_request = request_mock(
             http_client.OK, 'text/html', '<p>Hello World!</p>')
-        self.assertEqual(
-            _metadata.get(http_request, PATH),
-            '<p>Hello World!</p>'
-        )
+        assert _metadata.get(http_request, PATH) == '<p>Hello World!</p>'
         http_request.assert_called_once_with(EXPECTED_URL, **EXPECTED_KWARGS)
 
     def test_get_failure(self):
         http_request = request_mock(
             http_client.NOT_FOUND, 'text/html', '<p>Error</p>')
-        with self.assertRaises(httplib2.HttpLib2Error):
+        with pytest.raises(httplib2.HttpLib2Error):
             _metadata.get(http_request, PATH)
 
         http_request.assert_called_once_with(EXPECTED_URL, **EXPECTED_KWARGS)
@@ -77,9 +72,9 @@ class TestMetadata(unittest2.TestCase):
             json.dumps({'access_token': 'a', 'expires_in': 100})
         )
         token, expiry = _metadata.get_token(http_request=http_request)
-        self.assertEqual(token, 'a')
-        self.assertEqual(
-            expiry, datetime.datetime.min + datetime.timedelta(seconds=100))
+        assert token == 'a'
+        assert expiry == \
+            datetime.datetime.min + datetime.timedelta(seconds=100)
         http_request.assert_called_once_with(
             EXPECTED_URL + '/token',
             **EXPECTED_KWARGS
@@ -90,7 +85,7 @@ class TestMetadata(unittest2.TestCase):
         http_request = request_mock(
             http_client.OK, 'application/json', json.dumps(DATA))
         info = _metadata.get_service_account_info(http_request)
-        self.assertEqual(info, DATA)
+        assert info == DATA
         http_request.assert_called_once_with(
             EXPECTED_URL + '/?recursive=True',
             **EXPECTED_KWARGS

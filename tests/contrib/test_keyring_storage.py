@@ -35,24 +35,24 @@ class KeyringStorageTests(unittest2.TestCase):
         service_name = 'my_unit_test'
         user_name = 'me'
         store = Storage(service_name, user_name)
-        self.assertEqual(store._service_name, service_name)
-        self.assertEqual(store._user_name, user_name)
+        assert store._service_name == service_name
+        assert store._user_name == user_name
         lock_type = type(threading.Lock())
-        self.assertTrue(isinstance(store._lock, lock_type))
+        assert isinstance(store._lock, lock_type)
 
     def test_acquire_lock(self):
         store = Storage('my_unit_test', 'me')
         store._lock = lock = _FakeLock()
-        self.assertEqual(lock._acquire_count, 0)
+        assert lock._acquire_count == 0
         store.acquire_lock()
-        self.assertEqual(lock._acquire_count, 1)
+        assert lock._acquire_count == 1
 
     def test_release_lock(self):
         store = Storage('my_unit_test', 'me')
         store._lock = lock = _FakeLock()
-        self.assertEqual(lock._release_count, 0)
+        assert lock._release_count == 0
         store.release_lock()
-        self.assertEqual(lock._release_count, 1)
+        assert lock._release_count == 1
 
     def test_locked_get(self):
         service_name = 'my_unit_test'
@@ -72,7 +72,7 @@ class KeyringStorageTests(unittest2.TestCase):
                 credentials = store.locked_get()
                 new_from_json.assert_called_once_with(mock_content)
                 get_password.assert_called_once_with(service_name, user_name)
-                self.assertEqual(credentials, mock_return_creds)
+                assert credentials == mock_return_creds
                 set_store.assert_called_once_with(store)
 
     def test_locked_put(self):
@@ -107,7 +107,7 @@ class KeyringStorageTests(unittest2.TestCase):
                                autospec=True) as get_password:
             store = Storage('my_unit_test', 'me')
             credentials = store.get()
-            self.assertEquals(None, credentials)
+            assert credentials is None
             get_password.assert_called_once_with('my_unit_test', 'me')
 
     def test_get_with_malformed_json_credentials_stored(self):
@@ -116,7 +116,7 @@ class KeyringStorageTests(unittest2.TestCase):
                                autospec=True) as get_password:
             store = Storage('my_unit_test', 'me')
             credentials = store.get()
-            self.assertEquals(None, credentials)
+            assert credentials is None
             get_password.assert_called_once_with('my_unit_test', 'me')
 
     def test_get_and_set_with_json_credentials_stored(self):
@@ -142,7 +142,7 @@ class KeyringStorageTests(unittest2.TestCase):
                                    return_value=None,
                                    autospec=True) as set_password:
                 store = Storage('my_unit_test', 'me')
-                self.assertEquals(None, store.get())
+                assert store.get() is None
 
                 store.put(credentials)
 
@@ -154,8 +154,8 @@ class KeyringStorageTests(unittest2.TestCase):
                                return_value=credentials.to_json(),
                                autospec=True) as get_password:
             restored = store.get()
-            self.assertEqual('foo', restored.access_token)
-            self.assertEqual('some_client_id', restored.client_id)
+            assert 'foo' == restored.access_token
+            assert 'some_client_id' == restored.client_id
             get_password.assert_called_once_with('my_unit_test', 'me')
 
 

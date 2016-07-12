@@ -1,6 +1,7 @@
 """Unit tests for oauth2client.util."""
 
 import mock
+import pytest
 import unittest2
 
 from oauth2client import util
@@ -19,9 +20,9 @@ class PositionalTests(unittest2.TestCase):
         def fn(pos, kwonly=None):
             return True
 
-        self.assertTrue(fn(1))
-        self.assertTrue(fn(1, kwonly=2))
-        with self.assertRaises(TypeError):
+        assert fn(1) is True
+        assert fn(1, kwonly=2) is True
+        with pytest.raises(TypeError):
             fn(1, 2)
 
         # No positional, but a required keyword arg.
@@ -29,8 +30,8 @@ class PositionalTests(unittest2.TestCase):
         def fn2(required_kw):
             return True
 
-        self.assertTrue(fn2(required_kw=1))
-        with self.assertRaises(TypeError):
+        assert fn2(required_kw=1) is True
+        with pytest.raises(TypeError):
             fn2(1)
 
         # Unspecified positional, should automatically figure out 1 positional
@@ -39,9 +40,9 @@ class PositionalTests(unittest2.TestCase):
         def fn3(pos, kwonly=None):
             return True
 
-        self.assertTrue(fn3(1))
-        self.assertTrue(fn3(1, kwonly=2))
-        with self.assertRaises(TypeError):
+        assert fn3(1) is True
+        assert fn3(1, kwonly=2) is True
+        with pytest.raises(TypeError):
             fn3(1, 2)
 
     @mock.patch('oauth2client.util.logger')
@@ -52,8 +53,8 @@ class PositionalTests(unittest2.TestCase):
         def fn(pos, kwonly=None):
             return True
 
-        self.assertTrue(fn(1, 2))
-        self.assertTrue(mock_logger.warning.called)
+        assert fn(1, 2) is True
+        assert mock_logger.warning.called is True
 
     @mock.patch('oauth2client.util.logger')
     def test_enforcement_ignore(self, mock_logger):
@@ -63,8 +64,8 @@ class PositionalTests(unittest2.TestCase):
         def fn(pos, kwonly=None):
             return True
 
-        self.assertTrue(fn(1, 2))
-        self.assertFalse(mock_logger.warning.called)
+        assert fn(1, 2) is True
+        assert mock_logger.warning.called is False
 
 
 class ScopeToStringTests(unittest2.TestCase):
@@ -84,7 +85,7 @@ class ScopeToStringTests(unittest2.TestCase):
             ('a b', (s for s in ['a', 'b'])),
         ]
         for expected, case in cases:
-            self.assertEqual(expected, util.scopes_to_string(case))
+            assert expected == util.scopes_to_string(case)
 
 
 class StringToScopeTests(unittest2.TestCase):
@@ -98,25 +99,18 @@ class StringToScopeTests(unittest2.TestCase):
         ]
 
         for case, expected in cases:
-            self.assertEqual(expected, util.string_to_scopes(case))
+            assert expected == util.string_to_scopes(case)
 
 
 class AddQueryParameterTests(unittest2.TestCase):
 
     def test__add_query_parameter(self):
-        self.assertEqual(
-            util._add_query_parameter('/action', 'a', None),
-            '/action')
-        self.assertEqual(
-            util._add_query_parameter('/action', 'a', 'b'),
-            '/action?a=b')
-        self.assertEqual(
-            util._add_query_parameter('/action?a=b', 'a', 'c'),
-            '/action?a=c')
+        assert util._add_query_parameter('/action', 'a', None) == '/action'
+        assert util._add_query_parameter('/action', 'a', 'b') == '/action?a=b'
+        assert util._add_query_parameter('/action?a=b', 'a', 'c') == \
+            '/action?a=c'
         # Order is non-deterministic.
-        self.assertIn(
-            util._add_query_parameter('/action?a=b', 'c', 'd'),
-            ['/action?a=b&c=d', '/action?c=d&a=b'])
-        self.assertEqual(
-            util._add_query_parameter('/action', 'a', ' ='),
-            '/action?a=+%3D')
+        assert util._add_query_parameter('/action?a=b', 'c', 'd') in \
+            ['/action?a=b&c=d', '/action?c=d&a=b']
+        assert util._add_query_parameter('/action', 'a', ' =') == \
+            '/action?a=+%3D'

@@ -19,6 +19,7 @@ from io import StringIO
 import os
 import tempfile
 
+import pytest
 import unittest2
 
 from oauth2client import clientsecrets
@@ -41,44 +42,44 @@ NONEXISTENT_FILE = os.path.join(
 class Test__validate_clientsecrets(unittest2.TestCase):
 
     def test_with_none(self):
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets(None)
 
     def test_with_other_than_one_key(self):
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets({})
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets({'one': 'val', 'two': 'val'})
 
     def test_with_non_dictionary(self):
         non_dict = [None]
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets(non_dict)
 
     def test_invalid_client_type(self):
         fake_type = 'fake_type'
-        self.assertNotEqual(fake_type, clientsecrets.TYPE_WEB)
-        self.assertNotEqual(fake_type, clientsecrets.TYPE_INSTALLED)
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        assert fake_type != clientsecrets.TYPE_WEB
+        assert fake_type != clientsecrets.TYPE_INSTALLED
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets({fake_type: None})
 
     def test_missing_required_type_web(self):
         required = clientsecrets.VALID_CLIENT[
             clientsecrets.TYPE_WEB]['required']
         # We will certainly have less than all 5 keys.
-        self.assertEqual(len(required), 5)
+        assert len(required) == 5
 
         clientsecrets_dict = {
             clientsecrets.TYPE_WEB: {'not_required': None},
         }
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets(clientsecrets_dict)
 
     def test_string_not_configured_type_web(self):
         string_props = clientsecrets.VALID_CLIENT[
             clientsecrets.TYPE_WEB]['string']
 
-        self.assertTrue('client_id' in string_props)
+        assert 'client_id' in string_props
         clientsecrets_dict = {
             clientsecrets.TYPE_WEB: {
                 'client_id': '[[template]]',
@@ -88,26 +89,26 @@ class Test__validate_clientsecrets(unittest2.TestCase):
                 'token_uri': None,
             },
         }
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets(clientsecrets_dict)
 
     def test_missing_required_type_installed(self):
         required = clientsecrets.VALID_CLIENT[
             clientsecrets.TYPE_INSTALLED]['required']
         # We will certainly have less than all 5 keys.
-        self.assertEqual(len(required), 5)
+        assert len(required) == 5
 
         clientsecrets_dict = {
             clientsecrets.TYPE_INSTALLED: {'not_required': None},
         }
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets(clientsecrets_dict)
 
     def test_string_not_configured_type_installed(self):
         string_props = clientsecrets.VALID_CLIENT[
             clientsecrets.TYPE_INSTALLED]['string']
 
-        self.assertTrue('client_id' in string_props)
+        assert 'client_id' in string_props
         clientsecrets_dict = {
             clientsecrets.TYPE_INSTALLED: {
                 'client_id': '[[template]]',
@@ -117,7 +118,7 @@ class Test__validate_clientsecrets(unittest2.TestCase):
                 'token_uri': None,
             },
         }
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._validate_clientsecrets(clientsecrets_dict)
 
     def test_success_type_web(self):
@@ -132,7 +133,7 @@ class Test__validate_clientsecrets(unittest2.TestCase):
             clientsecrets.TYPE_WEB: client_info,
         }
         result = clientsecrets._validate_clientsecrets(clientsecrets_dict)
-        self.assertEqual(result, (clientsecrets.TYPE_WEB, client_info))
+        assert result == (clientsecrets.TYPE_WEB, client_info)
 
     def test_success_type_installed(self):
         client_info = {
@@ -146,7 +147,7 @@ class Test__validate_clientsecrets(unittest2.TestCase):
             clientsecrets.TYPE_INSTALLED: client_info,
         }
         result = clientsecrets._validate_clientsecrets(clientsecrets_dict)
-        self.assertEqual(result, (clientsecrets.TYPE_INSTALLED, client_info))
+        assert result == (clientsecrets.TYPE_INSTALLED, client_info)
 
 
 class Test__loadfile(unittest2.TestCase):
@@ -161,20 +162,20 @@ class Test__loadfile(unittest2.TestCase):
             'token_uri': GOOGLE_TOKEN_URI,
             'revoke_uri': GOOGLE_REVOKE_URI,
         }
-        self.assertEqual(client_type, clientsecrets.TYPE_WEB)
-        self.assertEqual(client_info, expected_client_info)
+        assert client_type == clientsecrets.TYPE_WEB
+        assert client_info == expected_client_info
 
     def test_non_existent(self):
         path = os.path.join(DATA_DIR, 'fake.json')
-        self.assertFalse(os.path.exists(path))
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        assert os.path.exists(path) is False
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets._loadfile(path)
 
     def test_bad_json(self):
         filename = tempfile.mktemp()
         with open(filename, 'wb') as file_obj:
             file_obj.write(b'[')
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             clientsecrets._loadfile(filename)
 
 
@@ -202,27 +203,27 @@ class OAuth2CredentialsTests(unittest2.TestCase):
             # Ensure that it is unicode
             src = _from_bytes(src)
             # Test load(s)
-            with self.assertRaises(
+            with pytest.raises(
                     clientsecrets.InvalidClientSecretsError) as exc_manager:
                 clientsecrets.loads(src)
 
-            self.assertTrue(str(exc_manager.exception).startswith(match))
+                assert str(exc_manager.exception).startswith(match) is True
 
             # Test loads(fp)
-            with self.assertRaises(
+            with pytest.raises(
                     clientsecrets.InvalidClientSecretsError) as exc_manager:
                 fp = StringIO(src)
                 clientsecrets.load(fp)
 
-            self.assertTrue(str(exc_manager.exception).startswith(match))
+                assert str(exc_manager.exception).startswith(match) is True
 
     def test_load_by_filename_missing_file(self):
-        with self.assertRaises(
+        with pytest.raises(
                 clientsecrets.InvalidClientSecretsError) as exc_manager:
             clientsecrets._loadfile(NONEXISTENT_FILE)
 
-        self.assertEquals(exc_manager.exception.args[1], NONEXISTENT_FILE)
-        self.assertEquals(exc_manager.exception.args[3], errno.ENOENT)
+            assert exc_manager.exception.args[1] == NONEXISTENT_FILE
+            assert exc_manager.exception.args[3] == errno.ENOENT
 
 
 class CachedClientsecretsTests(unittest2.TestCase):
@@ -249,34 +250,34 @@ class CachedClientsecretsTests(unittest2.TestCase):
     def test_cache_miss(self):
         client_type, client_info = clientsecrets.loadfile(
             VALID_FILE, cache=self.cache_mock)
-        self.assertEqual('web', client_type)
-        self.assertEqual('foo_client_secret', client_info['client_secret'])
+        assert 'web' == client_type
+        assert 'foo_client_secret' == client_info['client_secret']
 
         cached = self.cache_mock.cache[VALID_FILE]
-        self.assertEqual({client_type: client_info}, cached)
+        assert {client_type: client_info} == cached
 
         # make sure we're using non-empty namespace
         ns = self.cache_mock.last_set_ns
-        self.assertTrue(bool(ns))
+        assert bool(ns) is True
         # make sure they're equal
-        self.assertEqual(ns, self.cache_mock.last_get_ns)
+        assert ns == self.cache_mock.last_get_ns
 
     def test_cache_hit(self):
         self.cache_mock.cache[NONEXISTENT_FILE] = {'web': 'secret info'}
 
         client_type, client_info = clientsecrets.loadfile(
             NONEXISTENT_FILE, cache=self.cache_mock)
-        self.assertEqual('web', client_type)
-        self.assertEqual('secret info', client_info)
+        assert 'web' == client_type
+        assert 'secret info' == client_info
         # make sure we didn't do any set() RPCs
-        self.assertEqual(None, self.cache_mock.last_set_ns)
+        assert self.cache_mock.last_set_ns is None
 
     def test_validation(self):
-        with self.assertRaises(clientsecrets.InvalidClientSecretsError):
+        with pytest.raises(clientsecrets.InvalidClientSecretsError):
             clientsecrets.loadfile(INVALID_FILE, cache=self.cache_mock)
 
     def test_without_cache(self):
         # this also ensures loadfile() is backward compatible
         client_type, client_info = clientsecrets.loadfile(VALID_FILE)
-        self.assertEqual('web', client_type)
-        self.assertEqual('foo_client_secret', client_info['client_secret'])
+        assert 'web' == client_type
+        assert 'foo_client_secret' == client_info['client_secret']

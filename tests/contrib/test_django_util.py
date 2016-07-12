@@ -20,6 +20,7 @@ import django.conf
 from django.conf.urls import include, url
 from django.core import exceptions
 import mock
+import pytest
 from six.moves import http_client
 from six.moves.urllib import parse
 import unittest2
@@ -52,9 +53,9 @@ class OAuth2SetupTest(unittest2.TestCase):
         )
 
         oauth2_settings = django_util.OAuth2Settings(django.conf.settings)
-        self.assertTrue(clientsecrets.loadfile.called)
-        self.assertEqual(oauth2_settings.client_id, 'myid')
-        self.assertEqual(oauth2_settings.client_secret, 'hunter2')
+        assert clientsecrets.loadfile.called is True
+        assert oauth2_settings.client_id == 'myid'
+        assert oauth2_settings.client_secret == 'hunter2'
 
     @mock.patch("oauth2client.contrib.django_util.clientsecrets")
     def test_settings_initialize_invalid_type(self, clientsecrets):
@@ -67,7 +68,7 @@ class OAuth2SetupTest(unittest2.TestCase):
             }
         )
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             django_util.OAuth2Settings.__init__(
                 object.__new__(django_util.OAuth2Settings),
                 django.conf.settings)
@@ -78,7 +79,7 @@ class OAuth2SetupTest(unittest2.TestCase):
         django.conf.settings.GOOGLE_OAUTH2_CLIENT_SECRET = None
         django.conf.settings.GOOGLE_OAUTH2_CLIENT_ID = None
 
-        with self.assertRaises(exceptions.ImproperlyConfigured):
+        with pytest.raises(exceptions.ImproperlyConfigured):
             django_util.OAuth2Settings.__init__(
                 object.__new__(django_util.OAuth2Settings),
                 django.conf.settings)
@@ -88,7 +89,7 @@ class OAuth2SetupTest(unittest2.TestCase):
         old_classes = django.conf.settings.MIDDLEWARE_CLASSES
         django.conf.settings.MIDDLEWARE_CLASSES = ()
 
-        with self.assertRaises(exceptions.ImproperlyConfigured):
+        with pytest.raises(exceptions.ImproperlyConfigured):
             django_util.OAuth2Settings.__init__(
                 object.__new__(django_util.OAuth2Settings),
                 django.conf.settings)
@@ -115,10 +116,10 @@ class OAuth2EnabledDecoratorTest(TestWithSession):
             return http.HttpResponse("test")  # pragma: NO COVER
 
         response = test_view(request)
-        self.assertEquals(response.status_code, http_client.OK)
-        self.assertIsNotNone(request.oauth)
-        self.assertFalse(request.oauth.has_credentials())
-        self.assertIsNone(request.oauth.http)
+        assert response.status_code == http_client.OK
+        assert request.oauth is not None
+        assert bool(request.oauth.has_credentials()) is False
+        assert request.oauth.http is None
 
     @mock.patch('oauth2client.contrib.dictionary_storage.OAuth2Credentials')
     def test_has_credentials_in_storage(self, OAuth2Credentials):
@@ -136,10 +137,10 @@ class OAuth2EnabledDecoratorTest(TestWithSession):
             return http.HttpResponse("test")
 
         response = test_view(request)
-        self.assertEquals(response.status_code, http_client.OK)
-        self.assertEquals(response.content, b"test")
-        self.assertTrue(request.oauth.has_credentials())
-        self.assertIsNotNone(request.oauth.http)
+        assert response.status_code == http_client.OK
+        assert response.content == b"test"
+        assert request.oauth.has_credentials() is True
+        assert request.oauth.http is not None
 
     @mock.patch('oauth2client.contrib.dictionary_storage.OAuth2Credentials')
     def test_specified_scopes(self, OAuth2Credentials):
@@ -157,9 +158,9 @@ class OAuth2EnabledDecoratorTest(TestWithSession):
             return http.HttpResponse("hello world")  # pragma: NO COVER
 
         response = test_view(request)
-        self.assertEquals(response.status_code, http_client.OK)
-        self.assertIsNotNone(request.oauth)
-        self.assertFalse(request.oauth.has_credentials())
+        assert response.status_code == http_client.OK
+        assert request.oauth is not None
+        assert request.oauth.has_credentials() is False
 
 
 class OAuth2RequiredDecoratorTest(TestWithSession):
@@ -172,13 +173,13 @@ class OAuth2RequiredDecoratorTest(TestWithSession):
             return http.HttpResponse("test")  # pragma: NO COVER
 
         response = test_view(request)
-        self.assertTrue(isinstance(response, http.HttpResponseRedirect))
-        self.assertEquals(parse.urlparse(response['Location']).path,
-                          "/oauth2/oauth2authorize/")
-        self.assertTrue(
-            "return_url=%2Ftest" in parse.urlparse(response['Location']).query)
+        assert isinstance(response, http.HttpResponseRedirect)
+        assert parse.urlparse(response['Location']).path == \
+            "/oauth2/oauth2authorize/"
+        assert "return_url=%2Ftest" in \
+            parse.urlparse(response['Location']).query
 
-        self.assertEquals(response.status_code, 302)
+        assert response.status_code == 302
 
     @mock.patch('oauth2client.contrib.django_util.UserOAuth2', autospec=True)
     def test_has_credentials_in_storage(self, UserOAuth2):
@@ -195,8 +196,8 @@ class OAuth2RequiredDecoratorTest(TestWithSession):
         my_user_oauth.has_credentials.return_value = True
 
         response = test_view(request)
-        self.assertEquals(response.status_code, http_client.OK)
-        self.assertEquals(response.content, b"test")
+        assert response.status_code == http_client.OK
+        assert response.content == b"test"
 
     @mock.patch('oauth2client.contrib.dictionary_storage.OAuth2Credentials')
     def test_has_credentials_in_storage_no_scopes(self, OAuth2Credentials):
@@ -214,7 +215,7 @@ class OAuth2RequiredDecoratorTest(TestWithSession):
             return http.HttpResponse("test")  # pragma: NO COVER
 
         response = test_view(request)
-        self.assertEquals(response.status_code, 302)
+        assert response.status_code == 302
 
     @mock.patch('oauth2client.contrib.dictionary_storage.OAuth2Credentials')
     def test_specified_scopes(self, OAuth2Credentials):
@@ -231,7 +232,7 @@ class OAuth2RequiredDecoratorTest(TestWithSession):
             return http.HttpResponse("hello world")  # pragma: NO COVER
 
         response = test_view(request)
-        self.assertEquals(response.status_code, 302)
+        assert response.status_code == 302
 
 
 class Oauth2AuthorizeTest(TestWithSession):
@@ -240,14 +241,14 @@ class Oauth2AuthorizeTest(TestWithSession):
         request = self.factory.get('oauth2/oauth2authorize')
         request.session = self.session
         response = views.oauth2_authorize(request)
-        self.assertTrue(isinstance(response, http.HttpResponseRedirect))
+        assert isinstance(response, http.HttpResponseRedirect)
 
     def test_authorize_works_explicit_return_url(self):
         request = self.factory.get('oauth2/oauth2authorize',
                                    data={'return_url': '/return_endpoint'})
         request.session = self.session
         response = views.oauth2_authorize(request)
-        self.assertTrue(isinstance(response, http.HttpResponseRedirect))
+        assert isinstance(response, http.HttpResponseRedirect)
 
 
 class Oauth2CallbackTest(TestWithSession):
@@ -288,9 +289,9 @@ class Oauth2CallbackTest(TestWithSession):
 
         request.session = self.session
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseRedirect))
-        self.assertEquals(response.status_code, 302)
-        self.assertEquals(response['Location'], self.RETURN_URL)
+        assert isinstance(response, http.HttpResponseRedirect)
+        assert response.status_code == 302
+        assert response['Location'] == self.RETURN_URL
 
     @mock.patch("oauth2client.contrib.django_util.views.pickle")
     def test_callback_handles_bad_flow_exchange(self, pickle):
@@ -319,15 +320,15 @@ class Oauth2CallbackTest(TestWithSession):
 
         request.session = self.session
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseBadRequest))
+        assert isinstance(response, http.HttpResponseBadRequest)
 
     def test_error_returns_bad_request(self):
         request = self.factory.get('oauth2/oauth2callback', data={
             "error": "There was an error in your authorization.",
         })
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseBadRequest))
-        self.assertTrue(b"Authorization failed" in response.content)
+        assert isinstance(response, http.HttpResponseBadRequest)
+        assert b"Authorization failed" in response.content
 
     def test_no_session(self):
         request = self.factory.get('oauth2/oauth2callback', data={
@@ -337,9 +338,8 @@ class Oauth2CallbackTest(TestWithSession):
 
         request.session = self.session
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseBadRequest))
-        self.assertEquals(
-            response.content, b'No existing session for this flow.')
+        assert isinstance(response, http.HttpResponseBadRequest)
+        assert response.content == b'No existing session for this flow.'
 
     def test_missing_state_returns_bad_request(self):
         request = self.factory.get('oauth2/oauth2callback', data={
@@ -348,7 +348,7 @@ class Oauth2CallbackTest(TestWithSession):
         self.session['google_oauth2_csrf_token'] = "token"
         request.session = self.session
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseBadRequest))
+        assert isinstance(response, http.HttpResponseBadRequest)
 
     def test_bad_state(self):
         request = self.factory.get('oauth2/oauth2callback', data={
@@ -358,8 +358,8 @@ class Oauth2CallbackTest(TestWithSession):
         self.session['google_oauth2_csrf_token'] = "token"
         request.session = self.session
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseBadRequest))
-        self.assertEquals(response.content, b'Invalid state parameter.')
+        assert isinstance(response, http.HttpResponseBadRequest)
+        assert response.content == b'Invalid state parameter.'
 
     def test_bad_csrf(self):
         request = self.factory.get('oauth2/oauth2callback', data={
@@ -369,8 +369,8 @@ class Oauth2CallbackTest(TestWithSession):
         self.session['google_oauth2_csrf_token'] = "WRONG TOKEN"
         request.session = self.session
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseBadRequest))
-        self.assertEquals(response.content, b'Invalid CSRF token.')
+        assert isinstance(response, http.HttpResponseBadRequest)
+        assert response.content == b'Invalid CSRF token.'
 
     def test_no_saved_flow(self):
         request = self.factory.get('oauth2/oauth2callback', data={
@@ -381,8 +381,8 @@ class Oauth2CallbackTest(TestWithSession):
         self.session['google_oauth2_flow_{0}'.format(self.CSRF_TOKEN)] = None
         request.session = self.session
         response = views.oauth2_callback(request)
-        self.assertTrue(isinstance(response, http.HttpResponseBadRequest))
-        self.assertEquals(response.content, b'Missing Oauth2 flow.')
+        assert isinstance(response, http.HttpResponseBadRequest)
+        assert response.content == b'Missing Oauth2 flow.'
 
 
 class MockObjectWithSession(object):
@@ -397,7 +397,7 @@ class StorageTest(TestWithSession):
         request = MockObjectWithSession(self.session)
         django_storage = storage.get_storage(request)
         django_storage.delete()
-        self.assertIsNone(self.session.get(storage._CREDENTIALS_KEY))
+        assert self.session.get(storage._CREDENTIALS_KEY) is None
 
     def test_session_delete_nothing(self):
         request = MockObjectWithSession(self.session)

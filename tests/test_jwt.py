@@ -19,6 +19,7 @@ import tempfile
 import time
 
 import mock
+import pytest
 import unittest2
 
 from oauth2client import crypt
@@ -78,11 +79,11 @@ class CryptTests(unittest2.TestCase):
         signature = signer.sign('foo')
 
         verifier = self.verifier.from_string(public_key, True)
-        self.assertTrue(verifier.verify(b'foo', signature))
+        assert verifier.verify(b'foo', signature) is True
 
-        self.assertFalse(verifier.verify(b'bar', signature))
-        self.assertFalse(verifier.verify(b'foo', b'bad signagure'))
-        self.assertFalse(verifier.verify(b'foo', u'bad signagure'))
+        assert verifier.verify(b'bar', signature) is False
+        assert bool(verifier.verify(b'foo', b'bad signagure')) is False
+        assert bool(verifier.verify(b'foo', u'bad signagure')) is False
 
     def _check_jwt_failure(self, jwt, expected_error):
         public_key = datafile('public_cert.pem')
@@ -90,10 +91,10 @@ class CryptTests(unittest2.TestCase):
         audience = ('https://www.googleapis.com/auth/id?client_id='
                     'external_public_key@testing.gserviceaccount.com')
 
-        with self.assertRaises(crypt.AppIdentityError) as exc_manager:
+        with pytest.raises(crypt.AppIdentityError) as exc_manager:
             crypt.verify_signed_jwt_with_certs(jwt, certs, audience)
 
-        self.assertTrue(expected_error in str(exc_manager.exception))
+            assert expected_error in str(exc_manager.exception)
 
     def _create_signed_jwt(self):
         private_key = datafile('privatekey.' + self.format_)
@@ -115,8 +116,8 @@ class CryptTests(unittest2.TestCase):
         certs = {'foo': public_key}
         audience = 'some_audience_address@testing.gserviceaccount.com'
         contents = crypt.verify_signed_jwt_with_certs(jwt, certs, audience)
-        self.assertEqual('billy bob', contents['user'])
-        self.assertEqual('data', contents['metadata']['meta'])
+        assert 'billy bob' == contents['user']
+        assert 'data' == contents['metadata']['meta']
 
     def test_verify_id_token_with_certs_uri(self):
         jwt = self._create_signed_jwt()
@@ -128,8 +129,8 @@ class CryptTests(unittest2.TestCase):
         contents = verify_id_token(
             jwt, 'some_audience_address@testing.gserviceaccount.com',
             http=http)
-        self.assertEqual('billy bob', contents['user'])
-        self.assertEqual('data', contents['metadata']['meta'])
+        assert 'billy bob' == contents['user']
+        assert 'data' == contents['metadata']['meta']
 
     def test_verify_id_token_with_certs_uri_default_http(self):
         jwt = self._create_signed_jwt()
@@ -142,8 +143,8 @@ class CryptTests(unittest2.TestCase):
             contents = verify_id_token(
                 jwt, 'some_audience_address@testing.gserviceaccount.com')
 
-        self.assertEqual('billy bob', contents['user'])
-        self.assertEqual('data', contents['metadata']['meta'])
+        assert 'billy bob' == contents['user']
+        assert 'data' == contents['metadata']['meta']
 
     def test_verify_id_token_with_certs_uri_fails(self):
         jwt = self._create_signed_jwt()
@@ -153,7 +154,7 @@ class CryptTests(unittest2.TestCase):
             ({'status': '404'}, datafile('certs.json')),
         ])
 
-        with self.assertRaises(VerifyJwtTokenError):
+        with pytest.raises(VerifyJwtTokenError):
             verify_id_token(jwt, test_email, http=http)
 
     def test_verify_id_token_bad_tokens(self):
@@ -217,7 +218,7 @@ class CryptTests(unittest2.TestCase):
         # of from_string().
         public_key = datafile('privatekey.pem')
         verifier = self.verifier.from_string(public_key, is_x509_cert=False)
-        self.assertTrue(isinstance(verifier, self.verifier))
+        assert isinstance(verifier, self.verifier)
 
 
 class PEMCryptTestsPyCrypto(CryptTests):
@@ -266,17 +267,16 @@ class SignedJwtAssertionCredentialsTests(unittest2.TestCase):
         ])
         http = credentials.authorize(http)
         resp, content = http.request('http://example.org')
-        self.assertEqual(b'Bearer 1/3w', content[b'Authorization'])
+        assert b'Bearer 1/3w' == content[b'Authorization']
 
     def test_credentials_to_from_json(self):
         credentials = self._make_credentials()
         json = credentials.to_json()
         restored = Credentials.new_from_json(json)
-        self.assertEqual(credentials._private_key_pkcs12,
-                         restored._private_key_pkcs12)
-        self.assertEqual(credentials._private_key_password,
-                         restored._private_key_password)
-        self.assertEqual(credentials._kwargs, restored._kwargs)
+        assert credentials._private_key_pkcs12 == restored._private_key_pkcs12
+        assert credentials._private_key_password == \
+            restored._private_key_password
+        assert credentials._kwargs == restored._kwargs
 
     def _credentials_refresh(self, credentials):
         http = HttpMockSequence([
@@ -292,7 +292,7 @@ class SignedJwtAssertionCredentialsTests(unittest2.TestCase):
     def test_credentials_refresh_without_storage(self):
         credentials = self._make_credentials()
         content = self._credentials_refresh(credentials)
-        self.assertEqual(b'Bearer 3/3w', content[b'Authorization'])
+        assert b'Bearer 3/3w' == content[b'Authorization']
 
     def test_credentials_refresh_with_storage(self):
         credentials = self._make_credentials()
@@ -305,7 +305,7 @@ class SignedJwtAssertionCredentialsTests(unittest2.TestCase):
 
         content = self._credentials_refresh(credentials)
 
-        self.assertEqual(b'Bearer 3/3w', content[b'Authorization'])
+        assert b'Bearer 3/3w' == content[b'Authorization']
         os.unlink(filename)
 
 
@@ -328,5 +328,5 @@ class PEMSignedJwtAssertionCredentialsPyCryptoTests(
 class TestHasOpenSSLFlag(unittest2.TestCase):
 
     def test_true(self):
-        self.assertEqual(True, HAS_OPENSSL)
-        self.assertEqual(True, HAS_CRYPTO)
+        assert HAS_OPENSSL is True
+        assert HAS_CRYPTO is True

@@ -68,45 +68,43 @@ class TestCredentialsField(unittest2.TestCase):
             base64.b64encode(pickle.dumps(self.credentials)))
 
     def test_field_is_text(self):
-        self.assertEquals(self.field.get_internal_type(), 'TextField')
+        assert self.field.get_internal_type() == 'TextField'
 
     def test_field_unpickled(self):
-        self.assertTrue(
-            isinstance(self.field.to_python(self.pickle_str), Credentials))
+        assert isinstance(self.field.to_python(self.pickle_str), Credentials)
 
     def test_field_already_unpickled(self):
-        self.assertTrue(isinstance(
-            self.field.to_python(self.credentials), Credentials))
+        assert isinstance(self.field.to_python(self.credentials), Credentials)
 
     def test_none_field_unpickled(self):
-        self.assertIsNone(self.field.to_python(None))
+        assert self.field.to_python(None) is None
 
     def test_from_db_value(self):
         value = self.field.from_db_value(
             self.pickle_str, None, None, None)
-        self.assertTrue(isinstance(value, Credentials))
+        assert isinstance(value, Credentials)
 
     def test_field_unpickled_none(self):
-        self.assertEqual(self.field.to_python(None), None)
+        assert self.field.to_python(None) is None
 
     def test_field_pickled(self):
         prep_value = self.field.get_db_prep_value(self.credentials,
                                                   connection=None)
-        self.assertEqual(prep_value, self.pickle_str)
+        assert prep_value == self.pickle_str
 
     def test_field_value_to_string(self):
         self.fake_model.credentials = self.credentials
         value_str = self.fake_model_field.value_to_string(self.fake_model)
-        self.assertEqual(value_str, self.pickle_str)
+        assert value_str == self.pickle_str
 
     def test_field_value_to_string_none(self):
         self.fake_model.credentials = None
         value_str = self.fake_model_field.value_to_string(self.fake_model)
-        self.assertEqual(value_str, None)
+        assert value_str is None
 
     def test_credentials_without_null(self):
         credentials = CredentialsField()
-        self.assertTrue(credentials.null)
+        assert credentials.null is True
 
 
 class TestFlowField(unittest2.TestCase):
@@ -123,41 +121,40 @@ class TestFlowField(unittest2.TestCase):
             base64.b64encode(pickle.dumps(self.flow)))
 
     def test_field_is_text(self):
-        self.assertEquals(self.field.get_internal_type(), 'TextField')
+        assert self.field.get_internal_type() == 'TextField'
 
     def test_field_unpickled(self):
         python_val = self.field.to_python(self.pickle_str)
-        self.assertTrue(isinstance(python_val, Flow))
+        assert isinstance(python_val, Flow)
 
     def test_field_already_unpickled(self):
-        self.assertTrue(
-            isinstance(self.field.to_python(self.flow), Flow))
+        assert isinstance(self.field.to_python(self.flow), Flow)
 
     def test_none_field_unpickled(self):
-        self.assertIsNone(self.field.to_python(None))
+        assert self.field.to_python(None) is None
 
     def test_from_db_value(self):
         python_val = self.field.from_db_value(
             self.pickle_str, None, None, None)
-        self.assertTrue(isinstance(python_val, Flow))
+        assert isinstance(python_val, Flow)
 
     def test_field_pickled(self):
         prep_value = self.field.get_db_prep_value(self.flow, connection=None)
-        self.assertEqual(prep_value, self.pickle_str)
+        assert prep_value == self.pickle_str
 
     def test_field_value_to_string(self):
         self.fake_model.flow = self.flow
         value_str = self.fake_model_field.value_to_string(self.fake_model)
-        self.assertEqual(value_str, self.pickle_str)
+        assert value_str == self.pickle_str
 
     def test_field_value_to_string_none(self):
         self.fake_model.flow = None
         value_str = self.fake_model_field.value_to_string(self.fake_model)
-        self.assertEqual(value_str, None)
+        assert value_str is None
 
     def test_flow_with_null(self):
         flow = FlowField()
-        self.assertTrue(flow.null)
+        assert flow.null is True
 
 
 class TestStorage(unittest2.TestCase):
@@ -183,10 +180,10 @@ class TestStorage(unittest2.TestCase):
         storage = Storage(FakeCredentialsModel, self.key_name,
                           self.key_value, self.property_name)
 
-        self.assertEqual(storage.model_class, FakeCredentialsModel)
-        self.assertEqual(storage.key_name, self.key_name)
-        self.assertEqual(storage.key_value, self.key_value)
-        self.assertEqual(storage.property_name, self.property_name)
+        assert storage.model_class == FakeCredentialsModel
+        assert storage.key_name == self.key_name
+        assert storage.key_value == self.key_value
+        assert storage.property_name == self.property_name
 
     @mock.patch('django.db.models')
     def test_locked_get(self, djangoModel):
@@ -202,8 +199,7 @@ class TestStorage(unittest2.TestCase):
         storage = Storage(FakeCredentialsModelMock, self.key_name,
                           self.key_value, self.property_name)
         credential = storage.locked_get()
-        self.assertEqual(
-            credential, fake_model_with_credentials.credentials)
+        assert credential == fake_model_with_credentials.credentials
 
     @mock.patch('django.db.models')
     def test_locked_get_no_entities(self, djangoModel):
@@ -217,7 +213,7 @@ class TestStorage(unittest2.TestCase):
         storage = Storage(FakeCredentialsModelMock, self.key_name,
                           self.key_value, self.property_name)
         credential = storage.locked_get()
-        self.assertIsNone(credential)
+        assert credential is None
 
     @mock.patch('django.db.models')
     def test_locked_get_no_set_store(self, djangoModel):
@@ -233,8 +229,7 @@ class TestStorage(unittest2.TestCase):
         storage = Storage(FakeCredentialsModelMockNoSet, self.key_name,
                           self.key_value, self.property_name)
         credential = storage.locked_get()
-        self.assertEqual(
-            credential, fake_model_with_credentials.credentials)
+        assert credential == fake_model_with_credentials.credentials
 
     @mock.patch('django.db.models')
     def test_locked_put(self, djangoModel):
@@ -255,7 +250,7 @@ class TestStorage(unittest2.TestCase):
         storage = Storage(FakeCredentialsModelMock, self.key_name,
                           self.key_value, self.property_name)
         storage.locked_put(self.credentials, True)
-        self.assertTrue(fake_credentials.saved)
+        assert fake_credentials.saved is True
 
     @mock.patch('django.db.models')
     def test_locked_delete(self, djangoModel):
@@ -277,7 +272,7 @@ class TestStorage(unittest2.TestCase):
         storage = Storage(FakeCredentialsModelMock, self.key_name,
                           self.key_value, self.property_name)
         storage.locked_delete()
-        self.assertTrue(fake_entities.deleted)
+        assert fake_entities.deleted is True
 
 
 class CredentialWithSetStore(CredentialsField):

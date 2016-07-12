@@ -15,6 +15,7 @@
 
 import os
 
+import pytest
 import unittest2
 
 from oauth2client.crypt import PyCryptoSigner
@@ -43,30 +44,31 @@ class TestPyCryptoVerifier(unittest2.TestCase):
 
         verifier = PyCryptoVerifier.from_string(self._load_public_cert_bytes(),
                                                 is_x509_cert=True)
-        self.assertTrue(verifier.verify(to_sign, actual_signature))
+        assert verifier.verify(to_sign, actual_signature) is True
 
     def test_verify_failure(self):
         verifier = PyCryptoVerifier.from_string(self._load_public_cert_bytes(),
                                                 is_x509_cert=True)
         bad_signature = b''
-        self.assertFalse(verifier.verify(b'foo', bad_signature))
+        assert bool(verifier.verify(b'foo', bad_signature)) is False
 
     def test_verify_bad_key(self):
         verifier = PyCryptoVerifier.from_string(self._load_public_cert_bytes(),
                                                 is_x509_cert=True)
         bad_signature = b''
-        self.assertFalse(verifier.verify(b'foo', bad_signature))
+        print('bad_signature: ', bad_signature)
+        assert bool(verifier.verify(b'foo', bad_signature)) is False
 
     def test_from_string_unicode_key(self):
         public_key = self._load_public_cert_bytes()
         public_key = public_key.decode('utf-8')
         verifier = PyCryptoVerifier.from_string(public_key, is_x509_cert=True)
-        self.assertTrue(isinstance(verifier, PyCryptoVerifier))
+        assert isinstance(verifier, PyCryptoVerifier)
 
 
 class TestPyCryptoSigner(unittest2.TestCase):
 
     def test_from_string_bad_key(self):
         key_bytes = 'definitely-not-pem-format'
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             PyCryptoSigner.from_string(key_bytes)

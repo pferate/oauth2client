@@ -16,6 +16,7 @@ import base64
 import os
 
 import mock
+import pytest
 import unittest2
 
 from oauth2client import _helpers
@@ -36,7 +37,7 @@ def datafile(filename):
 class Test__bad_pkcs12_key_as_pem(unittest2.TestCase):
 
     def test_fails(self):
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             crypt._bad_pkcs12_key_as_pem()
 
 
@@ -52,7 +53,7 @@ class Test_pkcs12_key_as_pem(unittest2.TestCase):
         return credentials
 
     def _succeeds_helper(self, password=None):
-        self.assertEqual(True, HAS_OPENSSL)
+        assert HAS_OPENSSL is True
 
         credentials = self._make_svc_account_creds()
         if password is None:
@@ -62,7 +63,7 @@ class Test_pkcs12_key_as_pem(unittest2.TestCase):
         pkcs12_key_as_pem = datafile('pem_from_pkcs12.pem')
         pkcs12_key_as_pem = _helpers._parse_pem_key(pkcs12_key_as_pem)
         alternate_pem = datafile('pem_from_pkcs12_alternate.pem')
-        self.assertTrue(pem_contents in [pkcs12_key_as_pem, alternate_pem])
+        assert pem_contents in [pkcs12_key_as_pem, alternate_pem]
 
     def test_succeeds(self):
         self._succeeds_helper()
@@ -86,7 +87,7 @@ class Test__verify_signature(unittest2.TestCase):
             Verifier.from_string = mock.MagicMock(name='from_string',
                                                   return_value=verifier)
             result = crypt._verify_signature(message, signature, certs)
-            self.assertEqual(result, None)
+            assert result is None
 
             # Make sure our mocks were called as expected.
             Verifier.from_string.assert_called_once_with(cert_value,
@@ -110,7 +111,7 @@ class Test__verify_signature(unittest2.TestCase):
             Verifier.from_string = mock.MagicMock(name='from_string',
                                                   return_value=verifier)
             result = crypt._verify_signature(message, signature, certs)
-            self.assertEqual(result, None)
+            assert result is None
 
             # Make sure our mocks were called three times.
             expected_from_string_calls = [
@@ -118,11 +119,10 @@ class Test__verify_signature(unittest2.TestCase):
                 mock.call(cert_value2, is_x509_cert=True),
                 mock.call(cert_value3, is_x509_cert=True),
             ]
-            self.assertEqual(Verifier.from_string.mock_calls,
-                             expected_from_string_calls)
+            assert Verifier.from_string.mock_calls == \
+                expected_from_string_calls
             expected_verify_calls = [mock.call(message, signature)] * 3
-            self.assertEqual(verifier.verify.mock_calls,
-                             expected_verify_calls)
+            assert verifier.verify.mock_calls == expected_verify_calls
 
     def test_failure(self):
         cert_value = 'cert-value'
@@ -135,7 +135,7 @@ class Test__verify_signature(unittest2.TestCase):
         with mock.patch('oauth2client.crypt.Verifier') as Verifier:
             Verifier.from_string = mock.MagicMock(name='from_string',
                                                   return_value=verifier)
-            with self.assertRaises(crypt.AppIdentityError):
+            with pytest.raises(crypt.AppIdentityError):
                 crypt._verify_signature(message, signature, certs)
 
             # Make sure our mocks were called as expected.
@@ -148,27 +148,27 @@ class Test__check_audience(unittest2.TestCase):
 
     def test_null_audience(self):
         result = crypt._check_audience(None, None)
-        self.assertEqual(result, None)
+        assert result is None
 
     def test_success(self):
         audience = 'audience'
         payload_dict = {'aud': audience}
         result = crypt._check_audience(payload_dict, audience)
         # No exception and no result.
-        self.assertEqual(result, None)
+        assert result is None
 
     def test_missing_aud(self):
         audience = 'audience'
         payload_dict = {}
-        with self.assertRaises(crypt.AppIdentityError):
+        with pytest.raises(crypt.AppIdentityError):
             crypt._check_audience(payload_dict, audience)
 
     def test_wrong_aud(self):
         audience1 = 'audience1'
         audience2 = 'audience2'
-        self.assertNotEqual(audience1, audience2)
+        assert audience1 != audience2
         payload_dict = {'aud': audience1}
-        with self.assertRaises(crypt.AppIdentityError):
+        with pytest.raises(crypt.AppIdentityError):
             crypt._check_audience(payload_dict, audience2)
 
 
@@ -186,16 +186,14 @@ class Test__verify_time_range(unittest2.TestCase):
     def test_without_issued_at(self):
         payload_dict = {}
         exception_caught = self._exception_helper(payload_dict)
-        self.assertNotEqual(exception_caught, None)
-        self.assertTrue(str(exception_caught).startswith(
-            'No iat field in token'))
+        assert exception_caught is not None
+        assert str(exception_caught).startswith('No iat field in token')
 
     def test_without_expiration(self):
         payload_dict = {'iat': 'iat'}
         exception_caught = self._exception_helper(payload_dict)
-        self.assertNotEqual(exception_caught, None)
-        self.assertTrue(str(exception_caught).startswith(
-            'No exp field in token'))
+        assert exception_caught is not None
+        assert str(exception_caught).startswith('No exp field in token')
 
     def test_with_bad_token_lifetime(self):
         current_time = 123456
@@ -208,9 +206,9 @@ class Test__verify_time_range(unittest2.TestCase):
                                        return_value=current_time)
 
             exception_caught = self._exception_helper(payload_dict)
-            self.assertNotEqual(exception_caught, None)
-            self.assertTrue(str(exception_caught).startswith(
-                'exp field too far in future'))
+            assert exception_caught is not None
+            assert str(exception_caught).startswith(
+                'exp field too far in future')
 
     def test_with_issued_at_in_future(self):
         current_time = 123456
@@ -223,9 +221,8 @@ class Test__verify_time_range(unittest2.TestCase):
                                        return_value=current_time)
 
             exception_caught = self._exception_helper(payload_dict)
-            self.assertNotEqual(exception_caught, None)
-            self.assertTrue(str(exception_caught).startswith(
-                'Token used too early'))
+            assert exception_caught is not None
+            assert str(exception_caught).startswith('Token used too early')
 
     def test_with_expiration_in_the_past(self):
         current_time = 123456
@@ -238,9 +235,8 @@ class Test__verify_time_range(unittest2.TestCase):
                                        return_value=current_time)
 
             exception_caught = self._exception_helper(payload_dict)
-            self.assertNotEqual(exception_caught, None)
-            self.assertTrue(str(exception_caught).startswith(
-                'Token used too late'))
+            assert exception_caught is not None
+            assert str(exception_caught).startswith('Token used too late')
 
     def test_success(self):
         current_time = 123456
@@ -253,7 +249,7 @@ class Test__verify_time_range(unittest2.TestCase):
                                        return_value=current_time)
 
             exception_caught = self._exception_helper(payload_dict)
-            self.assertEqual(exception_caught, None)
+            assert exception_caught is None
 
 
 class Test_verify_signed_jwt_with_certs(unittest2.TestCase):
@@ -265,9 +261,9 @@ class Test_verify_signed_jwt_with_certs(unittest2.TestCase):
         except crypt.AppIdentityError as exc:
             exception_caught = exc
 
-        self.assertNotEqual(exception_caught, None)
-        self.assertTrue(str(exception_caught).startswith(
-            'Wrong number of segments in token'))
+        assert exception_caught is not None
+        assert str(exception_caught).startswith(
+            'Wrong number of segments in token')
 
     def test_jwt_payload_bad_json(self):
         header = signature = b''
@@ -280,9 +276,8 @@ class Test_verify_signed_jwt_with_certs(unittest2.TestCase):
         except crypt.AppIdentityError as exc:
             exception_caught = exc
 
-        self.assertNotEqual(exception_caught, None)
-        self.assertTrue(str(exception_caught).startswith(
-            'Can\'t parse token'))
+        assert exception_caught is not None
+        assert str(exception_caught).startswith('Can\'t parse token')
 
     @mock.patch('oauth2client.crypt._check_audience')
     @mock.patch('oauth2client.crypt._verify_time_range')
@@ -303,7 +298,7 @@ class Test_verify_signed_jwt_with_certs(unittest2.TestCase):
 
         result = crypt.verify_signed_jwt_with_certs(
             jwt, certs, audience=audience)
-        self.assertEqual(result, payload_dict)
+        assert result == payload_dict
 
         message_to_sign = header + b'.' + payload
         verify_sig.assert_called_once_with(

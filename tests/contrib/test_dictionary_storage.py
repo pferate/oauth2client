@@ -44,9 +44,9 @@ class DictionaryStorageTests(unittest2.TestCase):
         key = 'test-key'
         storage = DictionaryStorage(dictionary, key)
 
-        self.assertEqual(dictionary, storage._dictionary)
-        self.assertEqual(key, storage._key)
-        self.assertIsNone(storage._lock)
+        assert dictionary == storage._dictionary
+        assert key == storage._key
+        assert storage._lock is None
 
     def test_constructor_explicit(self):
         dictionary = {}
@@ -55,7 +55,7 @@ class DictionaryStorageTests(unittest2.TestCase):
 
         lock = object()
         storage = DictionaryStorage(dictionary, key, lock=lock)
-        self.assertEqual(storage._lock, lock)
+        assert storage._lock == lock
 
     def test_get(self):
         credentials = _generate_credentials()
@@ -63,16 +63,16 @@ class DictionaryStorageTests(unittest2.TestCase):
         key = 'credentials'
         storage = DictionaryStorage(dictionary, key)
 
-        self.assertIsNone(storage.get())
+        assert storage.get() is None
 
         dictionary[key] = credentials.to_json()
         returned = storage.get()
 
-        self.assertIsNotNone(returned)
-        self.assertEqual(returned.access_token, credentials.access_token)
-        self.assertEqual(returned.id_token, credentials.id_token)
-        self.assertEqual(returned.refresh_token, credentials.refresh_token)
-        self.assertEqual(returned.client_id, credentials.client_id)
+        assert returned is not None
+        assert returned.access_token == credentials.access_token
+        assert returned.id_token == credentials.id_token
+        assert returned.refresh_token == credentials.refresh_token
+        assert returned.client_id == credentials.client_id
 
     def test_put(self):
         credentials = _generate_credentials()
@@ -83,12 +83,12 @@ class DictionaryStorageTests(unittest2.TestCase):
         storage.put(credentials)
         returned = storage.get()
 
-        self.assertIn(key, dictionary)
-        self.assertIsNotNone(returned)
-        self.assertEqual(returned.access_token, credentials.access_token)
-        self.assertEqual(returned.id_token, credentials.id_token)
-        self.assertEqual(returned.refresh_token, credentials.refresh_token)
-        self.assertEqual(returned.client_id, credentials.client_id)
+        assert key in dictionary
+        assert returned is not None
+        assert returned.access_token == credentials.access_token
+        assert returned.id_token == credentials.id_token
+        assert returned.refresh_token == credentials.refresh_token
+        assert returned.client_id == credentials.client_id
 
     def test_delete(self):
         credentials = _generate_credentials()
@@ -98,9 +98,9 @@ class DictionaryStorageTests(unittest2.TestCase):
 
         storage.put(credentials)
 
-        self.assertIn(key, dictionary)
+        assert key in dictionary
 
         storage.delete()
 
-        self.assertNotIn(key, dictionary)
-        self.assertIsNone(storage.get())
+        assert key not in dictionary
+        assert storage.get() is None

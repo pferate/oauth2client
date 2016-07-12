@@ -18,6 +18,7 @@ import os
 from google.appengine.ext import ndb
 from google.appengine.ext import testbed
 import mock
+import pytest
 import unittest2
 
 from oauth2client.client import Credentials
@@ -58,7 +59,7 @@ class TestFlowNDBProperty(unittest2.TestCase):
         instance.put()
         retrieved = TestNDBModel.get_by_id('foo')
 
-        self.assertEqual('foo_client_id', retrieved.flow.client_id)
+        assert 'foo_client_id' == retrieved.flow.client_id
 
     @mock.patch('oauth2client.contrib._appengine_ndb._LOGGER')
     def test_validate_success(self, mock_logger):
@@ -81,7 +82,7 @@ class TestFlowNDBProperty(unittest2.TestCase):
     def test_validate_bad_type(self, mock_logger):
         flow_prop = TestNDBModel.flow
         flow_val = object()
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             flow_prop._validate(flow_val)
         mock_logger.info.assert_called_once_with('validate: Got type %s',
                                                  type(flow_val))
@@ -103,7 +104,7 @@ class TestCredentialsNDBProperty(unittest2.TestCase):
         instance = TestNDBModel(creds=creds, id='bar')
         instance.put()
         retrieved = TestNDBModel.get_by_id('bar')
-        self.assertIsInstance(retrieved.creds, Credentials)
+        assert isinstance(retrieved.creds, Credentials)
 
     @mock.patch('oauth2client.contrib._appengine_ndb._LOGGER')
     def test_validate_success(self, mock_logger):
@@ -125,7 +126,7 @@ class TestCredentialsNDBProperty(unittest2.TestCase):
     def test_validate_bad_type(self, mock_logger):
         creds_prop = TestNDBModel.creds
         creds_val = object()
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             creds_prop._validate(creds_val)
         mock_logger.info.assert_called_once_with('validate: Got type %s',
                                                  type(creds_val))
@@ -134,15 +135,15 @@ class TestCredentialsNDBProperty(unittest2.TestCase):
         creds_prop = TestNDBModel.creds
         creds = Credentials()
         creds_json = json.loads(creds_prop._to_base_type(creds))
-        self.assertDictEqual(creds_json, {
+        assert creds_json == {
             '_class': 'Credentials',
             '_module': 'oauth2client.client',
             'token_expiry': None,
-        })
+        }
 
     def test__to_base_type_null_creds(self):
         creds_prop = TestNDBModel.creds
-        self.assertEqual(creds_prop._to_base_type(None), '')
+        assert creds_prop._to_base_type(None) == ''
 
     def test__from_base_type_valid_creds(self):
         creds_prop = TestNDBModel.creds
@@ -152,17 +153,17 @@ class TestCredentialsNDBProperty(unittest2.TestCase):
             'token_expiry': None,
         })
         creds = creds_prop._from_base_type(creds_json)
-        self.assertIsInstance(creds, Credentials)
+        assert isinstance(creds, Credentials)
 
     def test__from_base_type_false_value(self):
         creds_prop = TestNDBModel.creds
-        self.assertIsNone(creds_prop._from_base_type(''))
-        self.assertIsNone(creds_prop._from_base_type(False))
-        self.assertIsNone(creds_prop._from_base_type(None))
-        self.assertIsNone(creds_prop._from_base_type([]))
-        self.assertIsNone(creds_prop._from_base_type({}))
+        assert creds_prop._from_base_type('') is None
+        assert creds_prop._from_base_type(False) is None
+        assert creds_prop._from_base_type(None) is None
+        assert creds_prop._from_base_type([]) is None
+        assert creds_prop._from_base_type({}) is None
 
     def test__from_base_type_bad_json(self):
         creds_prop = TestNDBModel.creds
         creds_json = '{JK-I-AM-NOT-JSON'
-        self.assertIsNone(creds_prop._from_base_type(creds_json))
+        assert creds_prop._from_base_type(creds_json) is None

@@ -29,6 +29,7 @@ import tempfile
 
 import httplib2
 import mock
+import pytest
 import six
 from six.moves import http_client
 from six.moves import urllib
@@ -97,17 +98,17 @@ def assertUrisEqual(testcase, expected, actual):
     """Test that URIs are the same, up to reordering of query parameters."""
     expected = urllib.parse.urlparse(expected)
     actual = urllib.parse.urlparse(actual)
-    testcase.assertEqual(expected.scheme, actual.scheme)
-    testcase.assertEqual(expected.netloc, actual.netloc)
-    testcase.assertEqual(expected.path, actual.path)
-    testcase.assertEqual(expected.params, actual.params)
-    testcase.assertEqual(expected.fragment, actual.fragment)
+    assert expected.scheme == actual.scheme
+    assert expected.netloc == actual.netloc
+    assert expected.path == actual.path
+    assert expected.params == actual.params
+    assert expected.fragment == actual.fragment
     expected_query = urllib.parse.parse_qs(expected.query)
     actual_query = urllib.parse.parse_qs(actual.query)
     for name in expected_query.keys():
-        testcase.assertEqual(expected_query[name], actual_query[name])
+        assert expected_query[name] == actual_query[name]
     for name in actual_query.keys():
-        testcase.assertEqual(expected_query[name], actual_query[name])
+        assert expected_query[name] == actual_query[name]
 
 
 def datafile(filename):
@@ -129,39 +130,39 @@ class CredentialsTests(unittest2.TestCase):
     def test_authorize_abstract(self):
         credentials = Credentials()
         http = object()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials.authorize(http)
 
     def test_refresh_abstract(self):
         credentials = Credentials()
         http = object()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials.refresh(http)
 
     def test_revoke_abstract(self):
         credentials = Credentials()
         http = object()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials.revoke(http)
 
     def test_apply_abstract(self):
         credentials = Credentials()
         headers = {}
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials.apply(headers)
 
     def test__to_json_basic(self):
         credentials = Credentials()
         json_payload = credentials._to_json([])
         # str(bytes) in Python2 and str(unicode) in Python3
-        self.assertIsInstance(json_payload, str)
+        assert isinstance(json_payload, str)
         payload = json.loads(json_payload)
         expected_payload = {
             '_class': Credentials.__name__,
             '_module': Credentials.__module__,
             'token_expiry': None,
         }
-        self.assertEqual(payload, expected_payload)
+        assert payload == expected_payload
 
     def test__to_json_with_strip(self):
         credentials = Credentials()
@@ -170,7 +171,7 @@ class CredentialsTests(unittest2.TestCase):
         to_strip = ['foo']
         json_payload = credentials._to_json(to_strip)
         # str(bytes) in Python2 and str(unicode) in Python3
-        self.assertIsInstance(json_payload, str)
+        assert isinstance(json_payload, str)
         payload = json.loads(json_payload)
         expected_payload = {
             '_class': Credentials.__name__,
@@ -178,7 +179,7 @@ class CredentialsTests(unittest2.TestCase):
             'token_expiry': None,
             'baz': credentials.baz,
         }
-        self.assertEqual(payload, expected_payload)
+        assert payload == expected_payload
 
     def test__to_json_to_serialize(self):
         credentials = Credentials()
@@ -190,7 +191,7 @@ class CredentialsTests(unittest2.TestCase):
         orig_vals = to_serialize.copy()
         json_payload = credentials._to_json([], to_serialize=to_serialize)
         # str(bytes) in Python2 and str(unicode) in Python3
-        self.assertIsInstance(json_payload, str)
+        assert isinstance(json_payload, str)
         payload = json.loads(json_payload)
         expected_payload = {
             '_class': Credentials.__name__,
@@ -202,21 +203,21 @@ class CredentialsTests(unittest2.TestCase):
         expected_payload['st'] = list(expected_payload['st'])
         # Special-case the bytes.
         expected_payload['foo'] = u'bar'
-        self.assertEqual(payload, expected_payload)
+        assert payload == expected_payload
         # Make sure the method call didn't modify our dictionary.
-        self.assertEqual(to_serialize, orig_vals)
+        assert to_serialize == orig_vals
 
     @mock.patch.object(Credentials, '_to_json',
                        return_value=object())
     def test_to_json(self, to_json):
         credentials = Credentials()
-        self.assertEqual(credentials.to_json(), to_json.return_value)
+        assert credentials.to_json() == to_json.return_value
         to_json.assert_called_once_with(Credentials.NON_SERIALIZED_MEMBERS)
 
     def test_new_from_json_no_data(self):
         creds_data = {}
         json_data = json.dumps(creds_data)
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             Credentials.new_from_json(json_data)
 
     def test_new_from_json_basic_data(self):
@@ -226,7 +227,7 @@ class CredentialsTests(unittest2.TestCase):
         }
         json_data = json.dumps(creds_data)
         credentials = Credentials.new_from_json(json_data)
-        self.assertIsInstance(credentials, Credentials)
+        assert isinstance(credentials, Credentials)
 
     def test_new_from_json_old_name(self):
         creds_data = {
@@ -235,7 +236,7 @@ class CredentialsTests(unittest2.TestCase):
         }
         json_data = json.dumps(creds_data)
         credentials = Credentials.new_from_json(json_data)
-        self.assertIsInstance(credentials, Credentials)
+        assert isinstance(credentials, Credentials)
 
     def test_new_from_json_bad_module(self):
         creds_data = {
@@ -243,7 +244,7 @@ class CredentialsTests(unittest2.TestCase):
             '_class': 'Credentials',
         }
         json_data = json.dumps(creds_data)
-        with self.assertRaises(ImportError):
+        with pytest.raises(ImportError):
             Credentials.new_from_json(json_data)
 
     def test_new_from_json_bad_class(self):
@@ -252,32 +253,32 @@ class CredentialsTests(unittest2.TestCase):
             '_class': 'NopeNotCredentials',
         }
         json_data = json.dumps(creds_data)
-        with self.assertRaises(AttributeError):
+        with pytest.raises(AttributeError):
             Credentials.new_from_json(json_data)
 
     def test_from_json(self):
         unused_data = {}
         credentials = Credentials.from_json(unused_data)
-        self.assertIsInstance(credentials, Credentials)
-        self.assertEqual(credentials.__dict__, {})
+        assert isinstance(credentials, Credentials)
+        assert credentials.__dict__ == {}
 
 
 class TestStorage(unittest2.TestCase):
 
     def test_locked_get_abstract(self):
         storage = Storage()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             storage.locked_get()
 
     def test_locked_put_abstract(self):
         storage = Storage()
         credentials = object()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             storage.locked_put(credentials)
 
     def test_locked_delete_abstract(self):
         storage = Storage()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             storage.locked_delete()
 
 
@@ -314,36 +315,35 @@ class GoogleCredentialsTests(unittest2.TestCase):
         os.environ.pop(env, None)
 
     def validate_service_account_credentials(self, credentials):
-        self.assertTrue(isinstance(credentials, ServiceAccountCredentials))
-        self.assertEqual('123', credentials.client_id)
-        self.assertEqual('dummy@google.com',
-                         credentials._service_account_email)
-        self.assertEqual('ABCDEF', credentials._private_key_id)
-        self.assertEqual('', credentials._scopes)
+        assert isinstance(credentials, ServiceAccountCredentials)
+        assert '123' == credentials.client_id
+        assert 'dummy@google.com' == credentials._service_account_email
+        assert 'ABCDEF' == credentials._private_key_id
+        assert '' == credentials._scopes
 
     def validate_google_credentials(self, credentials):
-        self.assertTrue(isinstance(credentials, GoogleCredentials))
-        self.assertEqual(None, credentials.access_token)
-        self.assertEqual('123', credentials.client_id)
-        self.assertEqual('secret', credentials.client_secret)
-        self.assertEqual('alabalaportocala', credentials.refresh_token)
-        self.assertEqual(None, credentials.token_expiry)
-        self.assertEqual(GOOGLE_TOKEN_URI, credentials.token_uri)
-        self.assertEqual('Python client library', credentials.user_agent)
+        assert isinstance(credentials, GoogleCredentials)
+        assert credentials.access_token is None
+        assert '123' == credentials.client_id
+        assert 'secret' == credentials.client_secret
+        assert 'alabalaportocala' == credentials.refresh_token
+        assert credentials.token_expiry is None
+        assert GOOGLE_TOKEN_URI == credentials.token_uri
+        assert 'Python client library' == credentials.user_agent
 
     def get_a_google_credentials_object(self):
         return GoogleCredentials(None, None, None, None,
                                  None, None, None, None)
 
     def test_create_scoped_required(self):
-        self.assertFalse(
-            self.get_a_google_credentials_object().create_scoped_required())
+        assert \
+            self.get_a_google_credentials_object().create_scoped_required() \
+            is False
 
     def test_create_scoped(self):
         credentials = self.get_a_google_credentials_object()
-        self.assertEqual(credentials, credentials.create_scoped(None))
-        self.assertEqual(credentials,
-                         credentials.create_scoped(['dummy_scope']))
+        assert credentials == credentials.create_scoped(None)
+        assert credentials == credentials.create_scoped(['dummy_scope'])
 
     @mock.patch.object(GoogleCredentials,
                        '_implicit_credentials_from_files')
@@ -356,7 +356,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
     def test_get_application_default_in_gae(self, gae_adc, in_gae,
                                             from_gce, from_files):
         credentials = GoogleCredentials.get_application_default()
-        self.assertEqual(credentials, gae_adc.return_value)
+        assert credentials == gae_adc.return_value
         in_gae.assert_called_once_with()
         from_files.assert_not_called()
         from_gce.assert_not_called()
@@ -374,7 +374,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
     def test_get_application_default_in_gce(self, gce_adc, in_gce,
                                             from_files, from_gae):
         credentials = GoogleCredentials.get_application_default()
-        self.assertEqual(credentials, gce_adc.return_value)
+        assert credentials == gce_adc.return_value
         in_gce.assert_called_once_with()
         from_gae.assert_called_once_with()
         from_files.assert_called_once_with()
@@ -397,11 +397,11 @@ class GoogleCredentialsTests(unittest2.TestCase):
     def test_environment_caching(self):
         os.environ['SERVER_SOFTWARE'] = 'Development/XYZ'
         with mock_module_import('google.appengine'):
-            self.assertTrue(_in_gae_environment())
+            assert _in_gae_environment() is True
             os.environ['SERVER_SOFTWARE'] = ''
             # Even though we no longer pass the environment check, it
             # is cached.
-            self.assertTrue(_in_gae_environment())
+            assert _in_gae_environment() is True
 
     def _environment_check_gce_helper(self, status_ok=True, socket_error=False,
                                       server_software=''):
@@ -428,14 +428,14 @@ class GoogleCredentialsTests(unittest2.TestCase):
                     name='HTTPConnection', return_value=connection)
 
                 if server_software == '':
-                    self.assertFalse(_in_gae_environment())
+                    assert _in_gae_environment() is False
                 else:
-                    self.assertTrue(_in_gae_environment())
+                    assert _in_gae_environment() is True
 
                 if status_ok and not socket_error and server_software == '':
-                    self.assertTrue(_in_gce_environment())
+                    assert _in_gce_environment() is True
                 else:
-                    self.assertFalse(_in_gce_environment())
+                    assert _in_gce_environment() is False
 
                 if server_software == '':
                     http_client_module.HTTPConnection.assert_called_once_with(
@@ -446,23 +446,22 @@ class GoogleCredentialsTests(unittest2.TestCase):
                         client._METADATA_FLAVOR_HEADER: (
                             client._DESIRED_METADATA_FLAVOR),
                     }
-                    self.assertEqual(connection.method_calls, [
+                    assert connection.method_calls == [
                         mock.call.request('GET', '/',
                                           headers=headers),
                         mock.call.close(),
-                    ])
-                    self.assertEqual(response.method_calls, [])
+                    ]
+                    assert response.method_calls == []
                     if status_ok and not socket_error:
                         response.getheader.assert_called_once_with(
                             client._METADATA_FLAVOR_HEADER)
                 else:
-                    self.assertEqual(
-                        http_client_module.HTTPConnection.mock_calls, [])
-                    self.assertEqual(connection.getresponse.mock_calls, [])
+                    assert http_client_module.HTTPConnection.mock_calls == []
+                    assert connection.getresponse.mock_calls == []
                     # Remaining calls are not "getresponse"
-                    self.assertEqual(connection.method_calls, [])
-                    self.assertEqual(response.method_calls, [])
-                    self.assertEqual(response.getheader.mock_calls, [])
+                    assert connection.method_calls == []
+                    assert response.method_calls == []
+                    assert response.getheader.mock_calls == []
 
     def test_environment_check_gce_production(self):
         self._environment_check_gce_helper(status_ok=True)
@@ -485,8 +484,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         environment_variable_file = datafile(
             os.path.join('gcloud', _WELL_KNOWN_CREDENTIALS_FILE))
         os.environ[GOOGLE_APPLICATION_CREDENTIALS] = environment_variable_file
-        self.assertEqual(environment_variable_file,
-                         _get_environment_variable_file())
+        assert environment_variable_file == _get_environment_variable_file()
 
     def test_get_environment_variable_file_error(self):
         nonexistent_file = datafile('nonexistent')
@@ -494,13 +492,13 @@ class GoogleCredentialsTests(unittest2.TestCase):
         expected_err_msg = ('File ' + nonexistent_file +
                             ' \(pointed by ' + GOOGLE_APPLICATION_CREDENTIALS +
                             ' environment variable\) does not exist!')
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             _get_environment_variable_file()
 
     @mock.patch.dict(os.environ, {}, clear=True)
     def test_get_environment_variable_file_without_env_var(self):
-        self.assertIsNone(_get_environment_variable_file())
+        assert _get_environment_variable_file() is None
 
     @mock.patch('os.name', new='nt')
     @mock.patch.dict(os.environ, {'APPDATA': DATA_DIR}, clear=True)
@@ -508,7 +506,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         well_known_file = datafile(
             os.path.join(client._CLOUDSDK_CONFIG_DIRECTORY,
                          _WELL_KNOWN_CREDENTIALS_FILE))
-        self.assertEqual(well_known_file, _get_well_known_file())
+        assert well_known_file == _get_well_known_file()
 
     @mock.patch('os.name', new='nt')
     @mock.patch.dict(os.environ, {'SystemDrive': 'G:'}, clear=True)
@@ -516,7 +514,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         well_known_file = os.path.join('G:', '\\',
                                        client._CLOUDSDK_CONFIG_DIRECTORY,
                                        client._WELL_KNOWN_CREDENTIALS_FILE)
-        self.assertEqual(well_known_file, _get_well_known_file())
+        assert well_known_file == _get_well_known_file()
 
     @mock.patch.dict(os.environ,
                      {client._CLOUDSDK_CONFIG_ENV_VAR: 'CUSTOM_DIR'},
@@ -526,7 +524,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         EXPECTED_FILE = os.path.join(CUSTOM_DIR,
                                      _WELL_KNOWN_CREDENTIALS_FILE)
         well_known_file = _get_well_known_file()
-        self.assertEqual(well_known_file, EXPECTED_FILE)
+        assert well_known_file == EXPECTED_FILE
 
     def test_get_adc_from_file_service_account(self):
         credentials_file = datafile(
@@ -546,10 +544,10 @@ class GoogleCredentialsTests(unittest2.TestCase):
         save_to_well_known_file(credentials, temp_credential_file)
         with open(temp_credential_file) as f:
             d = json.load(f)
-        self.assertEqual('service_account', d['type'])
-        self.assertEqual('123', d['client_id'])
-        self.assertEqual('dummy@google.com', d['client_email'])
-        self.assertEqual('ABCDEF', d['private_key_id'])
+        assert 'service_account' == d['type']
+        assert '123' == d['client_id']
+        assert 'dummy@google.com' == d['client_email']
+        assert 'ABCDEF' == d['private_key_id']
         os.remove(temp_credential_file)
 
     @mock.patch('os.path.isdir', return_value=False)
@@ -559,7 +557,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
             os.path.join('gcloud', _WELL_KNOWN_CREDENTIALS_FILE))
         credentials = _get_application_default_credential_from_file(
             credential_file)
-        with self.assertRaises(OSError):
+        with pytest.raises(OSError):
             save_to_well_known_file(credentials)
         config_dir = os.path.join(os.path.expanduser('~'), '.config', 'gcloud')
         isdir_mock.assert_called_once_with(config_dir)
@@ -584,10 +582,10 @@ class GoogleCredentialsTests(unittest2.TestCase):
         save_to_well_known_file(credentials, temp_credential_file)
         with open(temp_credential_file) as f:
             d = json.load(f)
-        self.assertEqual('authorized_user', d['type'])
-        self.assertEqual('123', d['client_id'])
-        self.assertEqual('secret', d['client_secret'])
-        self.assertEqual('alabalaportocala', d['refresh_token'])
+        assert 'authorized_user' == d['type']
+        assert '123' == d['client_id']
+        assert 'secret' == d['client_secret']
+        assert 'alabalaportocala' == d['refresh_token']
         os.remove(temp_credential_file)
 
     def test_get_application_default_credential_from_malformed_file_1(self):
@@ -597,8 +595,8 @@ class GoogleCredentialsTests(unittest2.TestCase):
         expected_err_msg = ("'type' field should be defined "
                             "\(and have one of the '" + AUTHORIZED_USER +
                             "' or '" + SERVICE_ACCOUNT + "' values\)")
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             _get_application_default_credential_from_file(credentials_file)
 
     def test_get_application_default_credential_from_malformed_file_2(self):
@@ -607,23 +605,23 @@ class GoogleCredentialsTests(unittest2.TestCase):
                          'application_default_credentials_malformed_2.json'))
         expected_err_msg = (
             'The following field\(s\) must be defined: private_key_id')
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             _get_application_default_credential_from_file(credentials_file)
 
     def test_get_application_default_credential_from_malformed_file_3(self):
         credentials_file = datafile(
             os.path.join('gcloud',
                          'application_default_credentials_malformed_3.json'))
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _get_application_default_credential_from_file(credentials_file)
 
     def test_raise_exception_for_missing_fields(self):
         missing_fields = ['first', 'second', 'third']
         expected_err_msg = ('The following field\(s\) must be defined: ' +
                             ', '.join(missing_fields))
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             _raise_exception_for_missing_fields(missing_fields)
 
     def test_raise_exception_for_reading_json(self):
@@ -633,8 +631,8 @@ class GoogleCredentialsTests(unittest2.TestCase):
         expected_err_msg = ('An error was encountered while reading '
                             'json file: ' + credential_file +
                             extra_help + ': ' + str(error))
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             _raise_exception_for_reading_json(credential_file,
                                               extra_help, error)
 
@@ -657,9 +655,9 @@ class GoogleCredentialsTests(unittest2.TestCase):
         in_gae.assert_called_once_with()
 
     def test_env_name(self):
-        self.assertEqual(None, client.SETTINGS.env_name)
+        assert client.SETTINGS.env_name is None
         self.test_get_adc_from_env_var_service_account()
-        self.assertEqual(DEFAULT_ENV_NAME, client.SETTINGS.env_name)
+        assert DEFAULT_ENV_NAME == client.SETTINGS.env_name
 
     @mock.patch('oauth2client.client._in_gce_environment')
     @mock.patch('oauth2client.client._in_gae_environment', return_value=False)
@@ -692,13 +690,14 @@ class GoogleCredentialsTests(unittest2.TestCase):
                          'application_default_credentials_malformed_3.json'))
 
         expected_err = ApplicationDefaultCredentialsError
-        with self.assertRaises(expected_err) as exc_manager:
+        with pytest.raises(expected_err) as exc_manager:
             GoogleCredentials.get_application_default()
 
-        self.assertTrue(str(exc_manager.exception).startswith(
-            'An error was encountered while reading json file: ' +
-            get_env_file.return_value + ' (pointed to by ' +
-            GOOGLE_APPLICATION_CREDENTIALS + ' environment variable):'))
+            assert str(exc_manager.exception).startswith(
+                'An error was encountered while reading json file: ' +
+                get_env_file.return_value + ' (pointed to by ' +
+                GOOGLE_APPLICATION_CREDENTIALS + ' environment variable):') \
+                is True
 
         get_well_known.assert_not_called()
         in_gce.assert_not_called()
@@ -715,13 +714,13 @@ class GoogleCredentialsTests(unittest2.TestCase):
         # Unpack stubs.
         get_well_known, get_env_file, in_gae, in_gce = stubs
         # Make sure the well-known file actually doesn't exist.
-        self.assertFalse(os.path.exists(get_well_known.return_value))
+        assert os.path.exists(get_well_known.return_value) is False
 
         expected_err = ApplicationDefaultCredentialsError
-        with self.assertRaises(expected_err) as exc_manager:
+        with pytest.raises(expected_err) as exc_manager:
             GoogleCredentials.get_application_default()
 
-        self.assertEqual(ADC_HELP_MSG, str(exc_manager.exception))
+            assert ADC_HELP_MSG == str(exc_manager.exception)
         get_well_known.assert_called_once_with()
         get_env_file.assert_called_once_with()
         in_gae.assert_called_once_with()
@@ -738,7 +737,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         # Make sure the well-known file is an actual file.
         get_well_known.return_value = __file__
         # Make sure the well-known file actually doesn't exist.
-        self.assertTrue(os.path.exists(get_well_known.return_value))
+        assert os.path.exists(get_well_known.return_value)
 
         method_name = ('oauth2client.client.'
                        '_get_application_default_credential_from_file')
@@ -746,7 +745,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         with mock.patch(method_name,
                         return_value=result_creds) as get_from_file:
             result = GoogleCredentials.get_application_default()
-            self.assertEqual(result, result_creds)
+            assert result == result_creds
             get_from_file.assert_called_once_with(__file__)
 
         get_well_known.assert_called_once_with()
@@ -773,8 +772,8 @@ class GoogleCredentialsTests(unittest2.TestCase):
         credentials_filename = None
         expected_err_msg = (r'The parameter passed to the from_stream\(\) '
                             r'method should point to a file.')
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             self.get_a_google_credentials_object().from_stream(
                 credentials_filename)
 
@@ -789,8 +788,8 @@ class GoogleCredentialsTests(unittest2.TestCase):
             "'type' field should be defined \(and have one of the '" +
             AUTHORIZED_USER + "' or '" + SERVICE_ACCOUNT +
             "' values\)")
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             self.get_a_google_credentials_object().from_stream(
                 credentials_file)
 
@@ -804,8 +803,8 @@ class GoogleCredentialsTests(unittest2.TestCase):
             ' \(provided as parameter to the from_stream\(\) method\): '
             'The following field\(s\) must be defined: '
             'private_key_id')
-        with self.assertRaisesRegexp(ApplicationDefaultCredentialsError,
-                                     expected_err_msg):
+        with pytest.raises_regexp(ApplicationDefaultCredentialsError,
+                                  expected_err_msg):
             self.get_a_google_credentials_object().from_stream(
                 credentials_file)
 
@@ -813,7 +812,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         credentials_file = datafile(
             os.path.join('gcloud',
                          'application_default_credentials_malformed_3.json'))
-        with self.assertRaises(ApplicationDefaultCredentialsError):
+        with pytest.raises(ApplicationDefaultCredentialsError):
             self.get_a_google_credentials_object().from_stream(
                 credentials_file)
 
@@ -824,7 +823,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         json = creds.to_json()
         creds2 = GoogleCredentials.from_json(json)
 
-        self.assertEqual(creds.__dict__, creds2.__dict__)
+        assert creds.__dict__ == creds2.__dict__
 
     def test_to_from_json_service_account(self):
         credentials_file = datafile(
@@ -837,7 +836,7 @@ class GoogleCredentialsTests(unittest2.TestCase):
         creds1_vals.pop('_signer')
         creds2_vals = creds2.__dict__
         creds2_vals.pop('_signer')
-        self.assertEqual(creds1_vals, creds2_vals)
+        assert creds1_vals == creds2_vals
 
     def test_to_from_json_service_account_scoped(self):
         credentials_file = datafile(
@@ -851,17 +850,17 @@ class GoogleCredentialsTests(unittest2.TestCase):
         creds1_vals.pop('_signer')
         creds2_vals = creds2.__dict__
         creds2_vals.pop('_signer')
-        self.assertEqual(creds1_vals, creds2_vals)
+        assert creds1_vals == creds2_vals
 
     def test_parse_expiry(self):
         dt = datetime.datetime(2016, 1, 1)
         parsed_expiry = client._parse_expiry(dt)
-        self.assertEqual('2016-01-01T00:00:00Z', parsed_expiry)
+        assert '2016-01-01T00:00:00Z' == parsed_expiry
 
     def test_bad_expiry(self):
         dt = object()
         parsed_expiry = client._parse_expiry(dt)
-        self.assertEqual(None, parsed_expiry)
+        assert parsed_expiry is None
 
 
 class DummyDeleteStorage(Storage):
@@ -888,15 +887,15 @@ def _token_revoke_test_helper(testcase, status, revoke_raise,
 
     http = HttpMock(headers={'status': status})
     if revoke_raise:
-        testcase.assertRaises(TokenRevokeError,
-                              testcase.credentials.revoke, http)
+        with pytest.raises(TokenRevokeError):
+            testcase.credentials.revoke(http)
     else:
         testcase.credentials.revoke(http)
 
-    testcase.assertEqual(getattr(testcase.credentials, token_attr),
-                         testcase.token_from_revoke)
-    testcase.assertEqual(valid_bool_value, testcase.credentials.invalid)
-    testcase.assertEqual(valid_bool_value, dummy_store.delete_called)
+    assert getattr(testcase.credentials, token_attr) == \
+        testcase.token_from_revoke
+    assert valid_bool_value == testcase.credentials.invalid
+    assert valid_bool_value == dummy_store.delete_called
 
     testcase.credentials.set_store(current_store)
 
@@ -937,9 +936,9 @@ class BasicCredentialsTests(unittest2.TestCase):
             ])
             http = self.credentials.authorize(http)
             resp, content = http.request('http://example.com')
-            self.assertEqual(b'Bearer 1/3w', content[b'Authorization'])
-            self.assertFalse(self.credentials.access_token_expired)
-            self.assertEqual(token_response, self.credentials.token_response)
+            assert b'Bearer 1/3w' == content[b'Authorization']
+            assert self.credentials.access_token_expired is False
+            assert token_response == self.credentials.token_response
 
     def test_recursive_authorize(self):
         """Tests that OAuth2Credentials doesn't intro. new method constraints.
@@ -969,12 +968,11 @@ class BasicCredentialsTests(unittest2.TestCase):
                  b'{"error":"access_denied"}'),
             ])
             http = self.credentials.authorize(http)
-            with self.assertRaises(HttpAccessTokenRefreshError) as exc_manager:
+            with pytest.raises(HttpAccessTokenRefreshError) as exc_manager:
                 http.request('http://example.com')
-            self.assertEqual(http_client.BAD_REQUEST,
-                             exc_manager.exception.status)
-            self.assertTrue(self.credentials.access_token_expired)
-            self.assertEqual(None, self.credentials.token_response)
+                assert http_client.BAD_REQUEST == exc_manager.exception.status
+            assert self.credentials.access_token_expired is True
+            assert self.credentials.token_response is None
 
     def test_token_revoke_success(self):
         _token_revoke_test_helper(
@@ -1000,29 +998,29 @@ class BasicCredentialsTests(unittest2.TestCase):
         ])
         http = self.credentials.authorize(http)
         resp, content = http.request('http://example.com')
-        self.assertEqual(http_client.BAD_REQUEST, resp.status)
-        self.assertEqual(None, self.credentials.token_response)
+        assert http_client.BAD_REQUEST == resp.status
+        assert self.credentials.token_response is None
 
     def test_to_from_json(self):
         json = self.credentials.to_json()
         instance = OAuth2Credentials.from_json(json)
-        self.assertEqual(OAuth2Credentials, type(instance))
+        assert OAuth2Credentials == type(instance)
         instance.token_expiry = None
         self.credentials.token_expiry = None
 
-        self.assertEqual(instance.__dict__, self.credentials.__dict__)
+        assert instance.__dict__ == self.credentials.__dict__
 
     def test_from_json_token_expiry(self):
         data = json.loads(self.credentials.to_json())
         data['token_expiry'] = None
         instance = OAuth2Credentials.from_json(json.dumps(data))
-        self.assertTrue(isinstance(instance, OAuth2Credentials))
+        assert isinstance(instance, OAuth2Credentials)
 
     def test_from_json_bad_token_expiry(self):
         data = json.loads(self.credentials.to_json())
         data['token_expiry'] = 'foobar'
         instance = OAuth2Credentials.from_json(json.dumps(data))
-        self.assertTrue(isinstance(instance, OAuth2Credentials))
+        assert isinstance(instance, OAuth2Credentials)
 
     def test_unicode_header_checks(self):
         access_token = u'foo'
@@ -1045,12 +1043,12 @@ class BasicCredentialsTests(unittest2.TestCase):
         cleaned_headers = {b'foo': b'3', b'bar': b'True', b'baz': b'abc'}
         http.request(u'http://example.com', method=u'GET', headers=headers)
         for k, v in cleaned_headers.items():
-            self.assertTrue(k in http.headers)
-            self.assertEqual(v, http.headers[k])
+            assert k in http.headers
+            assert v == http.headers[k]
 
         # Next, test that we do fail on unicode.
         unicode_str = six.unichr(40960) + 'abcd'
-        with self.assertRaises(NonAsciiHeaderError):
+        with pytest.raises(NonAsciiHeaderError):
             http.request(u'http://example.com', method=u'GET',
                          headers={u'foo': unicode_str})
 
@@ -1072,25 +1070,25 @@ class BasicCredentialsTests(unittest2.TestCase):
         http.request(u'http://example.com', method=u'GET',
                      headers={u'foo': u'bar'})
         for k, v in six.iteritems(http.headers):
-            self.assertTrue(isinstance(k, six.binary_type))
-            self.assertTrue(isinstance(v, six.binary_type))
+            assert isinstance(k, six.binary_type)
+            assert isinstance(v, six.binary_type)
 
         # Test again with unicode strings that can't simply be converted
         # to ASCII.
-        with self.assertRaises(NonAsciiHeaderError):
+        with pytest.raises(NonAsciiHeaderError):
             http.request(
                 u'http://example.com', method=u'GET',
                 headers={u'foo': u'\N{COMET}'})
 
         self.credentials.token_response = 'foobar'
         instance = OAuth2Credentials.from_json(self.credentials.to_json())
-        self.assertEqual('foobar', instance.token_response)
+        assert 'foobar' == instance.token_response
 
     def test__expires_in_no_expiry(self):
         credentials = OAuth2Credentials(None, None, None, None,
                                         None, None, None)
-        self.assertIsNone(credentials.token_expiry)
-        self.assertIsNone(credentials._expires_in())
+        assert credentials.token_expiry is None
+        assert credentials._expires_in() is None
 
     @mock.patch('oauth2client.client._UTCNOW')
     def test__expires_in_expired(self, utcnow):
@@ -1098,9 +1096,9 @@ class BasicCredentialsTests(unittest2.TestCase):
                                         None, None, None)
         credentials.token_expiry = datetime.datetime.utcnow()
         now = credentials.token_expiry + datetime.timedelta(seconds=1)
-        self.assertLess(credentials.token_expiry, now)
+        assert credentials.token_expiry < now
         utcnow.return_value = now
-        self.assertEqual(credentials._expires_in(), 0)
+        assert credentials._expires_in() == 0
         utcnow.assert_called_once_with()
 
     @mock.patch('oauth2client.client._UTCNOW')
@@ -1110,9 +1108,9 @@ class BasicCredentialsTests(unittest2.TestCase):
         credentials.token_expiry = datetime.datetime.utcnow()
         seconds = 1234
         now = credentials.token_expiry - datetime.timedelta(seconds=seconds)
-        self.assertLess(now, credentials.token_expiry)
+        assert now < credentials.token_expiry
         utcnow.return_value = now
-        self.assertEqual(credentials._expires_in(), seconds)
+        assert credentials._expires_in() == seconds
         utcnow.assert_called_once_with()
 
     @mock.patch('oauth2client.client._UTCNOW')
@@ -1150,46 +1148,45 @@ class BasicCredentialsTests(unittest2.TestCase):
         credentials.token_expiry = None
 
         # Get Access Token, First attempt.
-        self.assertEqual(credentials.access_token, None)
-        self.assertFalse(credentials.access_token_expired)
-        self.assertEqual(credentials.token_expiry, None)
+        assert credentials.access_token is None
+        assert credentials.access_token_expired is False
+        assert credentials.token_expiry is None
         token = credentials.get_access_token(http=http)
-        self.assertEqual(credentials.token_expiry, EXPIRY_TIME)
-        self.assertEqual(token1, token.access_token)
-        self.assertEqual(lifetime, token.expires_in)
-        self.assertEqual(token_response_first, credentials.token_response)
+        assert credentials.token_expiry == EXPIRY_TIME
+        assert token1 == token.access_token
+        assert lifetime == token.expires_in
+        assert token_response_first == credentials.token_response
         # Two utcnow calls are expected:
         # - get_access_token() -> _do_refresh_request (setting expires in)
         # - get_access_token() -> _expires_in()
         expected_utcnow_calls = [mock.call()] * 2
-        self.assertEqual(expected_utcnow_calls, utcnow.mock_calls)
+        assert expected_utcnow_calls == utcnow.mock_calls
 
         # Get Access Token, Second Attempt (not expired)
-        self.assertEqual(credentials.access_token, token1)
-        self.assertFalse(credentials.access_token_expired)
+        assert credentials.access_token == token1
+        assert credentials.access_token_expired is False
         token = credentials.get_access_token(http=http)
         # Make sure no refresh occurred since the token was not expired.
-        self.assertEqual(token1, token.access_token)
-        self.assertEqual(lifetime, token.expires_in)
-        self.assertEqual(token_response_first, credentials.token_response)
+        assert token1 == token.access_token
+        assert lifetime == token.expires_in
+        assert token_response_first == credentials.token_response
         # Three more utcnow calls are expected:
         # - access_token_expired
         # - get_access_token() -> access_token_expired
         # - get_access_token -> _expires_in
         expected_utcnow_calls = [mock.call()] * (2 + 3)
-        self.assertEqual(expected_utcnow_calls, utcnow.mock_calls)
+        assert expected_utcnow_calls == utcnow.mock_calls
 
         # Get Access Token, Third Attempt (force expiration)
-        self.assertEqual(credentials.access_token, token1)
+        assert credentials.access_token == token1
         credentials.token_expiry = NOW  # Manually force expiry.
-        self.assertTrue(credentials.access_token_expired)
+        assert credentials.access_token_expired is True
         token = credentials.get_access_token(http=http)
         # Make sure refresh occurred since the token was not expired.
-        self.assertEqual(token2, token.access_token)
-        self.assertEqual(lifetime, token.expires_in)
-        self.assertFalse(credentials.access_token_expired)
-        self.assertEqual(token_response_second,
-                         credentials.token_response)
+        assert token2 == token.access_token
+        assert lifetime == token.expires_in
+        assert credentials.access_token_expired is False
+        assert token_response_second == credentials.token_response
         # Five more utcnow calls are expected:
         # - access_token_expired
         # - get_access_token -> access_token_expired
@@ -1197,7 +1194,7 @@ class BasicCredentialsTests(unittest2.TestCase):
         # - get_access_token -> _expires_in
         # - access_token_expired
         expected_utcnow_calls = [mock.call()] * (2 + 3 + 5)
-        self.assertEqual(expected_utcnow_calls, utcnow.mock_calls)
+        assert expected_utcnow_calls == utcnow.mock_calls
 
     @mock.patch.object(OAuth2Credentials, 'refresh')
     @mock.patch.object(OAuth2Credentials, '_expires_in',
@@ -1216,11 +1213,9 @@ class BasicCredentialsTests(unittest2.TestCase):
             expires_in.assert_called_once_with()
             refresh_mock.assert_called_once_with(http_kls.return_value)
 
-        self.assertIsInstance(token_info, client.AccessTokenInfo)
-        self.assertEqual(token_info.access_token,
-                         credentials.access_token)
-        self.assertEqual(token_info.expires_in,
-                         expires_in.return_value)
+        assert isinstance(token_info, client.AccessTokenInfo)
+        assert token_info.access_token == credentials.access_token
+        assert token_info.expires_in == expires_in.return_value
 
     @mock.patch.object(OAuth2Credentials, 'refresh')
     @mock.patch.object(OAuth2Credentials, '_expires_in',
@@ -1235,11 +1230,9 @@ class BasicCredentialsTests(unittest2.TestCase):
 
         http_obj = object()
         token_info = credentials.get_access_token(http_obj)
-        self.assertIsInstance(token_info, client.AccessTokenInfo)
-        self.assertEqual(token_info.access_token,
-                         credentials.access_token)
-        self.assertEqual(token_info.expires_in,
-                         expires_in.return_value)
+        assert isinstance(token_info, client.AccessTokenInfo)
+        assert token_info.access_token == credentials.access_token
+        assert token_info.expires_in == expires_in.return_value
 
         expires_in.assert_called_once_with()
         refresh_mock.assert_called_once_with(http_obj)
@@ -1258,11 +1251,11 @@ class BasicCredentialsTests(unittest2.TestCase):
         http_request = mock.Mock()
         http_request.return_value = response, content
 
-        with self.assertRaises(HttpAccessTokenRefreshError) as exc_manager:
+        with pytest.raises(HttpAccessTokenRefreshError) as exc_manager:
             credentials._do_refresh_request(http_request)
 
-        self.assertEqual(exc_manager.exception.args, (error_msg,))
-        self.assertEqual(exc_manager.exception.status, response.status)
+            assert exc_manager.exception.args == (error_msg,)
+            assert exc_manager.exception.status == response.status
         http_request.assert_called_once_with(None, body=gen_body.return_value,
                                              headers=gen_headers.return_value,
                                              method='POST')
@@ -1270,7 +1263,7 @@ class BasicCredentialsTests(unittest2.TestCase):
         call1 = mock.call('Refreshing access_token')
         failure_template = 'Failed to retrieve access token: %s'
         call2 = mock.call(failure_template, content)
-        self.assertEqual(logger.info.mock_calls, [call1, call2])
+        assert logger.info.mock_calls == [call1, call2]
         if store is not None:
             store.locked_put.assert_called_once_with(credentials)
 
@@ -1333,18 +1326,18 @@ class BasicCredentialsTests(unittest2.TestCase):
         token = u's3kr3tz'
 
         if response.status == http_client.OK:
-            self.assertFalse(credentials.invalid)
-            self.assertIsNone(credentials._do_revoke(http_request, token))
-            self.assertTrue(credentials.invalid)
+            assert credentials.invalid is False
+            assert credentials._do_revoke(http_request, token) is None
+            assert credentials.invalid is True
             if store is not None:
                 store.delete.assert_called_once_with()
         else:
-            self.assertFalse(credentials.invalid)
-            with self.assertRaises(TokenRevokeError) as exc_manager:
+            assert credentials.invalid is False
+            with pytest.raises(TokenRevokeError) as exc_manager:
                 credentials._do_revoke(http_request, token)
-            # Make sure invalid was not flipped on.
-            self.assertFalse(credentials.invalid)
-            self.assertEqual(exc_manager.exception.args, (error_msg,))
+                # Make sure invalid was not flipped on.
+                assert credentials.invalid is False
+                assert exc_manager.exception.args == (error_msg,)
             if store is not None:
                 store.delete.assert_not_called()
 
@@ -1411,25 +1404,24 @@ class BasicCredentialsTests(unittest2.TestCase):
         token = u's3kr3tz'
 
         if response.status == http_client.OK:
-            self.assertEqual(credentials.scopes, set())
-            self.assertIsNone(
-                credentials._do_retrieve_scopes(http_request, token))
-            self.assertEqual(credentials.scopes, scopes)
+            assert credentials.scopes == set()
+            assert credentials._do_retrieve_scopes(http_request, token) is None
+            assert credentials.scopes == scopes
         else:
-            self.assertEqual(credentials.scopes, set())
-            with self.assertRaises(client.Error) as exc_manager:
+            assert credentials.scopes == set()
+            with pytest.raises(client.Error) as exc_manager:
                 credentials._do_retrieve_scopes(http_request, token)
-            # Make sure scopes were not changed.
-            self.assertEqual(credentials.scopes, set())
-            self.assertEqual(exc_manager.exception.args, (error_msg,))
+                # Make sure scopes were not changed.
+                assert credentials.scopes == set()
+                assert exc_manager.exception.args == (error_msg,)
 
         token_uri = _update_query_params(
             GOOGLE_TOKEN_INFO_URI,
             {'fields': 'scope', 'access_token': token})
-        self.assertEqual(len(http_request.mock_calls), 1)
+        assert len(http_request.mock_calls) == 1
         scopes_call = http_request.mock_calls[0]
         call_args = scopes_call[1]
-        self.assertEqual(len(call_args), 1)
+        assert len(call_args) == 1
         called_uri = call_args[0]
         assertUrisEqual(self, token_uri, called_uri)
         logger.info.assert_called_once_with('Refreshing scopes')
@@ -1439,7 +1431,7 @@ class BasicCredentialsTests(unittest2.TestCase):
             'status': http_client.OK,
         })
         invalid_json = b'{'
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             self._do_retrieve_scopes_test_helper(response, invalid_json, None)
 
     def test__do_retrieve_scopes_success(self):
@@ -1475,20 +1467,20 @@ class BasicCredentialsTests(unittest2.TestCase):
         self._do_retrieve_scopes_test_helper(response, content, error_msg)
 
     def test_has_scopes(self):
-        self.assertTrue(self.credentials.has_scopes('foo'))
-        self.assertTrue(self.credentials.has_scopes(['foo']))
-        self.assertFalse(self.credentials.has_scopes('bar'))
-        self.assertFalse(self.credentials.has_scopes(['bar']))
+        assert self.credentials.has_scopes('foo') is True
+        assert self.credentials.has_scopes(['foo']) is True
+        assert self.credentials.has_scopes('bar') is False
+        assert self.credentials.has_scopes(['bar']) is False
 
         self.credentials.scopes = set(['foo', 'bar'])
-        self.assertTrue(self.credentials.has_scopes('foo'))
-        self.assertTrue(self.credentials.has_scopes('bar'))
-        self.assertFalse(self.credentials.has_scopes('baz'))
-        self.assertTrue(self.credentials.has_scopes(['foo', 'bar']))
-        self.assertFalse(self.credentials.has_scopes(['foo', 'baz']))
+        assert self.credentials.has_scopes('foo') is True
+        assert self.credentials.has_scopes('bar') is True
+        assert self.credentials.has_scopes('baz') is False
+        assert self.credentials.has_scopes(['foo', 'bar']) is True
+        assert self.credentials.has_scopes(['foo', 'baz']) is False
 
         self.credentials.scopes = set([])
-        self.assertFalse(self.credentials.has_scopes('foo'))
+        assert self.credentials.has_scopes('foo') is False
 
     def test_retrieve_scopes(self):
         info_response_first = {'scope': 'foo bar'}
@@ -1502,12 +1494,12 @@ class BasicCredentialsTests(unittest2.TestCase):
         ])
 
         self.credentials.retrieve_scopes(http)
-        self.assertEqual(set(['foo', 'bar']), self.credentials.scopes)
+        assert set(['foo', 'bar']) == self.credentials.scopes
 
-        with self.assertRaises(Error):
+        with pytest.raises(Error):
             self.credentials.retrieve_scopes(http)
 
-        with self.assertRaises(Error):
+        with pytest.raises(Error):
             self.credentials.retrieve_scopes(http)
 
     def test_refresh_updates_id_token(self):
@@ -1529,7 +1521,7 @@ class BasicCredentialsTests(unittest2.TestCase):
             ])
             http = self.credentials.authorize(http)
             resp, content = http.request('http://example.com')
-            self.assertEqual(self.credentials.id_token, body)
+            assert self.credentials.id_token == body
 
 
 class AccessTokenCredentialsTests(unittest2.TestCase):
@@ -1546,7 +1538,7 @@ class AccessTokenCredentialsTests(unittest2.TestCase):
                 ({'status': status_code}, b''),
             ])
             http = self.credentials.authorize(http)
-            with self.assertRaises(AccessTokenCredentialsError):
+            with pytest.raises(AccessTokenCredentialsError):
                 resp, content = http.request('http://example.com')
 
     def test_token_revoke_success(self):
@@ -1565,7 +1557,7 @@ class AccessTokenCredentialsTests(unittest2.TestCase):
         ])
         http = self.credentials.authorize(http)
         resp, content = http.request('http://example.com')
-        self.assertEqual(http_client.BAD_REQUEST, resp.status)
+        assert http_client.BAD_REQUEST == resp.status
 
     def test_auth_header_sent(self):
         http = HttpMockSequence([
@@ -1573,7 +1565,7 @@ class AccessTokenCredentialsTests(unittest2.TestCase):
         ])
         http = self.credentials.authorize(http)
         resp, content = http.request('http://example.com')
-        self.assertEqual(b'Bearer foo', content[b'Authorization'])
+        assert b'Bearer foo' == content[b'Authorization']
 
 
 class TestAssertionCredentials(unittest2.TestCase):
@@ -1592,15 +1584,15 @@ class TestAssertionCredentials(unittest2.TestCase):
 
     def test__generate_assertion_abstract(self):
         credentials = AssertionCredentials(None)
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials._generate_assertion()
 
     def test_assertion_body(self):
         body = urllib.parse.parse_qs(
             self.credentials._generate_refresh_request_body())
-        self.assertEqual(self.assertion_text, body['assertion'][0])
-        self.assertEqual('urn:ietf:params:oauth:grant-type:jwt-bearer',
-                         body['grant_type'][0])
+        assert self.assertion_text == body['assertion'][0]
+        assert 'urn:ietf:params:oauth:grant-type:jwt-bearer' == \
+            body['grant_type'][0]
 
     def test_assertion_refresh(self):
         http = HttpMockSequence([
@@ -1609,7 +1601,7 @@ class TestAssertionCredentials(unittest2.TestCase):
         ])
         http = self.credentials.authorize(http)
         resp, content = http.request('http://example.com')
-        self.assertEqual(b'Bearer 1/3w', content[b'Authorization'])
+        assert b'Bearer 1/3w' == content[b'Authorization']
 
     def test_token_revoke_success(self):
         _token_revoke_test_helper(
@@ -1623,7 +1615,7 @@ class TestAssertionCredentials(unittest2.TestCase):
 
     def test_sign_blob_abstract(self):
         credentials = AssertionCredentials(None)
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials.sign_blob(b'blob')
 
 
@@ -1631,7 +1623,7 @@ class UpdateQueryParamsTest(unittest2.TestCase):
     def test_update_query_params_no_params(self):
         uri = 'http://www.google.com'
         updated = _update_query_params(uri, {'a': 'b'})
-        self.assertEqual(updated, uri + '?a=b')
+        assert updated == uri + '?a=b'
 
     def test_update_query_params_existing_params(self):
         uri = 'http://www.google.com?x=y'
@@ -1650,14 +1642,14 @@ class ExtractIdTokenTest(unittest2.TestCase):
         jwt = b'stuff.' + payload + b'.signature'
 
         extracted = _extract_id_token(jwt)
-        self.assertEqual(extracted, body)
+        assert extracted == body
 
     def test_extract_failure(self):
         body = {'foo': 'bar'}
         body_json = json.dumps(body).encode('ascii')
         payload = base64.urlsafe_b64encode(body_json).strip(b'=')
         jwt = b'stuff.' + payload
-        with self.assertRaises(VerifyJwtTokenError):
+        with pytest.raises(VerifyJwtTokenError):
             _extract_id_token(jwt)
 
 
@@ -1678,12 +1670,12 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
         parsed = urllib.parse.urlparse(authorize_url)
         q = urllib.parse.parse_qs(parsed[4])
-        self.assertEqual('client_id+1', q['client_id'][0])
-        self.assertEqual('code', q['response_type'][0])
-        self.assertEqual('foo', q['scope'][0])
-        self.assertEqual(OOB_CALLBACK_URN, q['redirect_uri'][0])
-        self.assertEqual('offline', q['access_type'][0])
-        self.assertEqual('state+1', q['state'][0])
+        assert 'client_id+1' == q['client_id'][0]
+        assert 'code' == q['response_type'][0]
+        assert 'foo' == q['scope'][0]
+        assert OOB_CALLBACK_URN == q['redirect_uri'][0]
+        assert 'offline' == q['access_type'][0]
+        assert 'state+1' == q['state'][0]
 
     def test_override_flow_via_kwargs(self):
         """Passing kwargs to override defaults."""
@@ -1700,21 +1692,21 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
         parsed = urllib.parse.urlparse(authorize_url)
         q = urllib.parse.parse_qs(parsed[4])
-        self.assertEqual('client_id+1', q['client_id'][0])
-        self.assertEqual('token', q['response_type'][0])
-        self.assertEqual('foo', q['scope'][0])
-        self.assertEqual(OOB_CALLBACK_URN, q['redirect_uri'][0])
-        self.assertEqual('online', q['access_type'][0])
+        assert 'client_id+1' == q['client_id'][0]
+        assert 'token' == q['response_type'][0]
+        assert 'foo' == q['scope'][0]
+        assert OOB_CALLBACK_URN == q['redirect_uri'][0]
+        assert 'online' == q['access_type'][0]
 
     @mock.patch('oauth2client.client.logger')
     def test_step1_get_authorize_url_redirect_override(self, logger):
         flow = OAuth2WebServerFlow('client_id+1', scope='foo',
                                    redirect_uri=OOB_CALLBACK_URN)
         alt_redirect = 'foo:bar'
-        self.assertEqual(flow.redirect_uri, OOB_CALLBACK_URN)
+        assert flow.redirect_uri == OOB_CALLBACK_URN
         result = flow.step1_get_authorize_url(redirect_uri=alt_redirect)
         # Make sure the redirect value was updated.
-        self.assertEqual(flow.redirect_uri, alt_redirect)
+        assert flow.redirect_uri == alt_redirect
         query_params = {
             'client_id': flow.client_id,
             'redirect_uri': alt_redirect,
@@ -1725,12 +1717,12 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         expected = _update_query_params(flow.auth_uri, query_params)
         assertUrisEqual(self, expected, result)
         # Check stubs.
-        self.assertEqual(logger.warning.call_count, 1)
+        assert logger.warning.call_count == 1
 
     def test_step1_get_authorize_url_without_redirect(self):
         flow = OAuth2WebServerFlow('client_id+1', scope='foo',
                                    redirect_uri=None)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             flow.step1_get_authorize_url(redirect_uri=None)
 
     def test_step1_get_authorize_url_without_login_hint(self):
@@ -1752,7 +1744,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
     def test_step1_get_device_and_user_codes_wo_device_uri(self):
         flow = OAuth2WebServerFlow('CID', scope='foo', device_uri=None)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             flow.step1_get_device_and_user_codes()
 
     def _step1_get_device_and_user_codes_helper(
@@ -1780,17 +1772,16 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
         expected = DeviceFlowInfo(device_code, user_code,
                                   None, ver_url, None)
-        self.assertEqual(result, expected)
-        self.assertEqual(len(http.requests), 1)
-        self.assertEqual(http.requests[0]['uri'], client.GOOGLE_DEVICE_URI)
+        assert result == expected
+        assert len(http.requests) == 1
+        assert http.requests[0]['uri'] == client.GOOGLE_DEVICE_URI
         body = http.requests[0]['body']
-        self.assertEqual(urllib.parse.parse_qs(body),
-                         {'client_id': [flow.client_id],
-                          'scope': [flow.scope]})
+        assert urllib.parse.parse_qs(body) == \
+            {'client_id': [flow.client_id], 'scope': [flow.scope]}
         headers = {'content-type': 'application/x-www-form-urlencoded'}
         if extra_headers is not None:
             headers.update(extra_headers)
-        self.assertEqual(http.requests[0]['headers'], headers)
+        assert http.requests[0]['headers'] == headers
 
     def test_step1_get_device_and_user_codes(self):
         self._step1_get_device_and_user_codes_helper()
@@ -1806,7 +1797,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
     def test_step1_get_device_and_user_codes_bad_payload(self):
         non_json_content = b'{'
-        with self.assertRaises(client.OAuth2DeviceCodeError):
+        with pytest.raises(client.OAuth2DeviceCodeError):
             self._step1_get_device_and_user_codes_helper(
                 content=non_json_content)
 
@@ -1816,10 +1807,10 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         http = HttpMockSequence([
             ({'status': status}, content),
         ])
-        with self.assertRaises(client.OAuth2DeviceCodeError) as exc_manager:
+        with pytest.raises(client.OAuth2DeviceCodeError) as exc_manager:
             flow.step1_get_device_and_user_codes(http=http)
 
-        self.assertEqual(exc_manager.exception.args, (error_msg,))
+            assert exc_manager.exception.args == (error_msg,)
 
     def test_step1_get_device_and_user_codes_non_json_failure(self):
         status = int(http_client.BAD_REQUEST)
@@ -1845,16 +1836,16 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
     def test_step2_exchange_no_input(self):
         flow = OAuth2WebServerFlow('client_id+1', scope='foo')
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             flow.step2_exchange()
 
     def test_step2_exchange_code_and_device_flow(self):
         flow = OAuth2WebServerFlow('client_id+1', scope='foo')
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             flow.step2_exchange(code='code', device_flow_info='dfi')
 
     def test_scope_is_required(self):
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             OAuth2WebServerFlow('client_id+1')
 
     def test_exchange_failure(self):
@@ -1862,7 +1853,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
             ({'status': '400'}, b'{"error":"invalid_request"}'),
         ])
 
-        with self.assertRaises(FlowExchangeError):
+        with pytest.raises(FlowExchangeError):
             self.flow.step2_exchange(code='some random code', http=http)
 
     def test_urlencoded_exchange_failure(self):
@@ -1870,8 +1861,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
             ({'status': '400'}, b'error=invalid_request'),
         ])
 
-        with self.assertRaisesRegexp(FlowExchangeError,
-                                     'invalid_request'):
+        with pytest.raises_regexp(FlowExchangeError, 'invalid_request'):
             self.flow.step2_exchange(code='some random code', http=http)
 
     def test_exchange_failure_with_json_error(self):
@@ -1887,7 +1877,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
                    b'}')
         http = HttpMockSequence([({'status': '400'}, payload)])
 
-        with self.assertRaises(FlowExchangeError):
+        with pytest.raises(FlowExchangeError):
             self.flow.step2_exchange(code='some random code', http=http)
 
     def _exchange_success_test_helper(self, code=None, device_flow_info=None):
@@ -1899,11 +1889,11 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         http = HttpMockSequence([({'status': '200'}, payload)])
         credentials = self.flow.step2_exchange(
             code=code, device_flow_info=device_flow_info, http=http)
-        self.assertEqual('SlAV32hkKG', credentials.access_token)
-        self.assertNotEqual(None, credentials.token_expiry)
-        self.assertEqual('8xLOxBtZp8', credentials.refresh_token)
-        self.assertEqual('dummy_revoke_uri', credentials.revoke_uri)
-        self.assertEqual(set(['foo']), credentials.scopes)
+        assert 'SlAV32hkKG' == credentials.access_token
+        assert credentials.token_expiry is not None
+        assert '8xLOxBtZp8' == credentials.refresh_token
+        assert 'dummy_revoke_uri' == credentials.revoke_uri
+        assert set(['foo']) == credentials.scopes
 
     def test_exchange_success(self):
         self._exchange_success_test_helper(code='some random code')
@@ -1927,11 +1917,11 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
                    '}')
         http = HttpMockSequence([({'status': '200'}, _to_bytes(payload))])
         credentials = self.flow.step2_exchange(code=binary_code, http=http)
-        self.assertEqual(access_token, credentials.access_token)
-        self.assertIsNotNone(credentials.token_expiry)
-        self.assertEqual(refresh_token, credentials.refresh_token)
-        self.assertEqual(revoke_uri, credentials.revoke_uri)
-        self.assertEqual(set(['foo']), credentials.scopes)
+        assert access_token == credentials.access_token
+        assert credentials.token_expiry is not None
+        assert refresh_token == credentials.refresh_token
+        assert revoke_uri == credentials.revoke_uri
+        assert set(['foo']) == credentials.scopes
 
     def test_exchange_dictlike(self):
         class FakeDict(object):
@@ -1954,14 +1944,14 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         http = HttpMockSequence([({'status': '200'}, payload)])
 
         credentials = self.flow.step2_exchange(code=not_a_dict, http=http)
-        self.assertEqual('SlAV32hkKG', credentials.access_token)
-        self.assertNotEqual(None, credentials.token_expiry)
-        self.assertEqual('8xLOxBtZp8', credentials.refresh_token)
-        self.assertEqual('dummy_revoke_uri', credentials.revoke_uri)
-        self.assertEqual(set(['foo']), credentials.scopes)
+        assert 'SlAV32hkKG' == credentials.access_token
+        assert credentials.token_expiry is not None
+        assert '8xLOxBtZp8' == credentials.refresh_token
+        assert 'dummy_revoke_uri' == credentials.revoke_uri
+        assert set(['foo']) == credentials.scopes
         request_code = urllib.parse.parse_qs(
             http.requests[0]['body'])['code'][0]
-        self.assertEqual(code, request_code)
+        assert code == request_code
 
     def test_exchange_using_authorization_header(self):
         auth_header = 'Basic Y2xpZW50X2lkKzE6c2VjcmV0KzE=',
@@ -1978,13 +1968,13 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         ])
 
         credentials = flow.step2_exchange(code='some random code', http=http)
-        self.assertEqual('SlAV32hkKG', credentials.access_token)
+        assert 'SlAV32hkKG' == credentials.access_token
 
         test_request = http.requests[0]
         # Did we pass the Authorization header?
-        self.assertEqual(test_request['headers']['Authorization'], auth_header)
+        assert test_request['headers']['Authorization'] == auth_header
         # Did we omit client_secret from POST body?
-        self.assertTrue('client_secret' not in test_request['body'])
+        assert 'client_secret' not in test_request['body']
 
     def test_urlencoded_exchange_success(self):
         http = HttpMockSequence([
@@ -1993,8 +1983,8 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
         credentials = self.flow.step2_exchange(code='some random code',
                                                http=http)
-        self.assertEqual('SlAV32hkKG', credentials.access_token)
-        self.assertNotEqual(None, credentials.token_expiry)
+        assert 'SlAV32hkKG' == credentials.access_token
+        assert credentials.token_expiry is not None
 
     def test_urlencoded_expires_param(self):
         http = HttpMockSequence([
@@ -2005,7 +1995,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
         credentials = self.flow.step2_exchange(code='some random code',
                                                http=http)
-        self.assertNotEqual(None, credentials.token_expiry)
+        assert credentials.token_expiry is not None
 
     def test_exchange_no_expires_in(self):
         payload = (b'{'
@@ -2016,7 +2006,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
         credentials = self.flow.step2_exchange(code='some random code',
                                                http=http)
-        self.assertEqual(None, credentials.token_expiry)
+        assert credentials.token_expiry is None
 
     def test_urlencoded_exchange_no_expires_in(self):
         http = HttpMockSequence([
@@ -2027,7 +2017,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
 
         credentials = self.flow.step2_exchange(code='some random code',
                                                http=http)
-        self.assertEqual(None, credentials.token_expiry)
+        assert credentials.token_expiry is None
 
     def test_exchange_fails_if_no_code(self):
         payload = (b'{'
@@ -2037,7 +2027,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         http = HttpMockSequence([({'status': '200'}, payload)])
 
         code = {'error': 'thou shall not pass'}
-        with self.assertRaisesRegexp(FlowExchangeError, 'shall not pass'):
+        with pytest.raises_regexp(FlowExchangeError, 'shall not pass'):
             self.flow.step2_exchange(code=code, http=http)
 
     def test_exchange_id_token_fail(self):
@@ -2048,7 +2038,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
                    b'}')
         http = HttpMockSequence([({'status': '200'}, payload)])
 
-        with self.assertRaises(VerifyJwtTokenError):
+        with pytest.raises(VerifyJwtTokenError):
             self.flow.step2_exchange(code='some random code', http=http)
 
     def test_exchange_id_token(self):
@@ -2066,7 +2056,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         http = HttpMockSequence([({'status': '200'}, payload)])
         credentials = self.flow.step2_exchange(code='some random code',
                                                http=http)
-        self.assertEqual(credentials.id_token, body)
+        assert credentials.id_token == body
 
 
 class FlowFromCachedClientsecrets(unittest2.TestCase):
@@ -2077,7 +2067,7 @@ class FlowFromCachedClientsecrets(unittest2.TestCase):
 
         flow = flow_from_clientsecrets(
             'some_secrets', '', redirect_uri='oob', cache=cache_mock)
-        self.assertEqual('foo_client_secret', flow.client_secret)
+        assert 'foo_client_secret' == flow.client_secret
 
     @mock.patch('oauth2client.clientsecrets.loadfile')
     def _flow_from_clientsecrets_success_helper(self, loadfile_mock,
@@ -2100,11 +2090,11 @@ class FlowFromCachedClientsecrets(unittest2.TestCase):
         if device_uri is not None:
             result = flow_from_clientsecrets(filename, scope, cache=cache,
                                              device_uri=device_uri)
-            self.assertEqual(result.device_uri, device_uri)
+            assert result.device_uri == device_uri
         else:
             result = flow_from_clientsecrets(filename, scope, cache=cache)
 
-        self.assertIsInstance(result, OAuth2WebServerFlow)
+        assert isinstance(result, OAuth2WebServerFlow)
         loadfile_mock.assert_called_once_with(filename, cache=cache)
 
     def test_flow_from_clientsecrets_success(self):
@@ -2123,7 +2113,7 @@ class FlowFromCachedClientsecrets(unittest2.TestCase):
     def test_flow_from_clientsecrets_invalid(self, loadfile_mock):
         filename = object()
         cache = object()
-        with self.assertRaises(InvalidClientSecretsError):
+        with pytest.raises(InvalidClientSecretsError):
             flow_from_clientsecrets(filename, None, cache=cache,
                                     message=None)
         loadfile_mock.assert_called_once_with(filename, cache=cache)
@@ -2164,8 +2154,8 @@ class FlowFromCachedClientsecrets(unittest2.TestCase):
         cache = object()
 
         err_msg = 'This OAuth 2.0 flow is unsupported: %r' % (client_type,)
-        with self.assertRaisesRegexp(client.UnknownClientSecretsFlowError,
-                                     err_msg):
+        with pytest.raises_regexp(client.UnknownClientSecretsFlowError,
+                                  err_msg):
             flow_from_clientsecrets(filename, None, cache=cache)
 
         loadfile_mock.assert_called_once_with(filename, cache=cache)
@@ -2189,16 +2179,16 @@ class CredentialsFromCodeTests(unittest2.TestCase):
         credentials = credentials_from_code(self.client_id, self.client_secret,
                                             self.scope, self.code, http=http,
                                             redirect_uri=self.redirect_uri)
-        self.assertEqual(credentials.access_token, token)
-        self.assertNotEqual(None, credentials.token_expiry)
-        self.assertEqual(set(['foo']), credentials.scopes)
+        assert credentials.access_token == token
+        assert credentials.token_expiry is not None
+        assert set(['foo']) == credentials.scopes
 
     def test_exchange_code_for_token_fail(self):
         http = HttpMockSequence([
             ({'status': '400'}, b'{"error":"invalid_request"}'),
         ])
 
-        with self.assertRaises(FlowExchangeError):
+        with pytest.raises(FlowExchangeError):
             credentials_from_code(self.client_id, self.client_secret,
                                   self.scope, self.code, http=http,
                                   redirect_uri=self.redirect_uri)
@@ -2212,9 +2202,9 @@ class CredentialsFromCodeTests(unittest2.TestCase):
         credentials = credentials_from_clientsecrets_and_code(
             datafile('client_secrets.json'), self.scope,
             self.code, http=http)
-        self.assertEqual(credentials.access_token, 'asdfghjkl')
-        self.assertNotEqual(None, credentials.token_expiry)
-        self.assertEqual(set(['foo']), credentials.scopes)
+        assert credentials.access_token == 'asdfghjkl'
+        assert credentials.token_expiry is not None
+        assert set(['foo']) == credentials.scopes
 
     def test_exchange_code_and_cached_file_for_token(self):
         http = HttpMockSequence([
@@ -2226,15 +2216,15 @@ class CredentialsFromCodeTests(unittest2.TestCase):
         credentials = credentials_from_clientsecrets_and_code(
             'some_secrets', self.scope,
             self.code, http=http, cache=cache_mock)
-        self.assertEqual(credentials.access_token, 'asdfghjkl')
-        self.assertEqual(set(['foo']), credentials.scopes)
+        assert credentials.access_token == 'asdfghjkl'
+        assert set(['foo']) == credentials.scopes
 
     def test_exchange_code_and_file_for_token_fail(self):
         http = HttpMockSequence([
             ({'status': '400'}, b'{"error":"invalid_request"}'),
         ])
 
-        with self.assertRaises(FlowExchangeError):
+        with pytest.raises(FlowExchangeError):
             credentials_from_clientsecrets_and_code(
                 datafile('client_secrets.json'), self.scope,
                 self.code, http=http)
@@ -2244,12 +2234,12 @@ class MemoryCacheTests(unittest2.TestCase):
 
     def test_get_set_delete(self):
         m = MemoryCache()
-        self.assertEqual(None, m.get('foo'))
-        self.assertEqual(None, m.delete('foo'))
+        assert m.get('foo') is None
+        assert m.delete('foo') is None
         m.set('foo', 'bar')
-        self.assertEqual('bar', m.get('foo'))
+        assert 'bar' == m.get('foo')
         m.delete('foo')
-        self.assertEqual(None, m.get('foo'))
+        assert m.get('foo') is None
 
 
 class Test__save_private_file(unittest2.TestCase):
@@ -2260,23 +2250,23 @@ class Test__save_private_file(unittest2.TestCase):
         client._save_private_file(filename, contents)
         with open(filename, 'r') as f:
             stored_contents = f.read()
-        self.assertEqual(stored_contents, contents_str)
+        assert stored_contents == contents_str
 
         stat_mode = os.stat(filename).st_mode
         # Octal 777, only last 3 positions matter for permissions mask.
         stat_mode &= 0o777
-        self.assertEqual(stat_mode, 0o600)
+        assert stat_mode == 0o600
 
     def test_new(self):
         filename = tempfile.mktemp()
-        self.assertFalse(os.path.exists(filename))
+        assert os.path.exists(filename) is False
         self._save_helper(filename)
 
     def test_existing(self):
         filename = tempfile.mktemp()
         with open(filename, 'w') as f:
             f.write('a bunch of nonsense longer than []')
-        self.assertTrue(os.path.exists(filename))
+        assert os.path.exists(filename) is True
         self._save_helper(filename)
 
 
@@ -2289,7 +2279,7 @@ class Test__get_application_default_credential_GAE(unittest2.TestCase):
         gae_mod.AppAssertionCredentials = creds_kls = mock.Mock()
         creds_kls.return_value = object()
         credentials = client._get_application_default_credential_GAE()
-        self.assertEqual(credentials, creds_kls.return_value)
+        assert credentials == creds_kls.return_value
         creds_kls.assert_called_once_with([])
 
 
@@ -2302,7 +2292,7 @@ class Test__get_application_default_credential_GCE(unittest2.TestCase):
         gce_mod.AppAssertionCredentials = creds_kls = mock.Mock()
         creds_kls.return_value = object()
         credentials = client._get_application_default_credential_GCE()
-        self.assertEqual(credentials, creds_kls.return_value)
+        assert credentials == creds_kls.return_value
         creds_kls.assert_called_once_with()
 
 
@@ -2310,11 +2300,11 @@ class Test__require_crypto_or_die(unittest2.TestCase):
 
     @mock.patch.object(client, 'HAS_CRYPTO', new=True)
     def test_with_crypto(self):
-        self.assertIsNone(client._require_crypto_or_die())
+        assert client._require_crypto_or_die() is None
 
     @mock.patch.object(client, 'HAS_CRYPTO', new=False)
     def test_without_crypto(self):
-        with self.assertRaises(client.CryptoUnavailableError):
+        with pytest.raises(client.CryptoUnavailableError):
             client._require_crypto_or_die()
 
 
@@ -2333,7 +2323,7 @@ class TestDeviceFlowInfo(unittest2.TestCase):
         result = DeviceFlowInfo.FromResponse(response)
         expected_result = DeviceFlowInfo(self.DEVICE_CODE, self.USER_CODE,
                                          None, self.VER_URL, None)
-        self.assertEqual(result, expected_result)
+        assert result == expected_result
 
     def test_FromResponse_fallback_to_uri(self):
         response = {
@@ -2344,14 +2334,14 @@ class TestDeviceFlowInfo(unittest2.TestCase):
         result = DeviceFlowInfo.FromResponse(response)
         expected_result = DeviceFlowInfo(self.DEVICE_CODE, self.USER_CODE,
                                          None, self.VER_URL, None)
-        self.assertEqual(result, expected_result)
+        assert result == expected_result
 
     def test_FromResponse_missing_url(self):
         response = {
             'device_code': self.DEVICE_CODE,
             'user_code': self.USER_CODE,
         }
-        with self.assertRaises(client.OAuth2DeviceCodeError):
+        with pytest.raises(client.OAuth2DeviceCodeError):
             DeviceFlowInfo.FromResponse(response)
 
     @mock.patch('oauth2client.client._UTCNOW')
@@ -2370,4 +2360,4 @@ class TestDeviceFlowInfo(unittest2.TestCase):
         result = DeviceFlowInfo.FromResponse(response)
         expected_result = DeviceFlowInfo(self.DEVICE_CODE, self.USER_CODE,
                                          None, self.VER_URL, expire)
-        self.assertEqual(result, expected_result)
+        assert result == expected_result

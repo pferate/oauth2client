@@ -19,6 +19,7 @@ import json
 
 import httplib2
 import mock
+import pytest
 from six.moves import http_client
 from tests.contrib.test_metadata import request_mock
 import unittest2
@@ -41,27 +42,27 @@ class AppAssertionCredentialsTests(unittest2.TestCase):
 
     def test_constructor(self):
         credentials = AppAssertionCredentials()
-        self.assertIsNone(credentials.assertion_type, None)
-        self.assertIsNone(credentials.service_account_email)
-        self.assertIsNone(credentials.scopes)
-        self.assertTrue(credentials.invalid)
+        assert credentials.assertion_type is None
+        assert credentials.service_account_email is None
+        assert credentials.scopes is None
+        assert credentials.invalid is True
 
     @mock.patch('warnings.warn')
     def test_constructor_with_scopes(self, warn_mock):
         scope = 'http://example.com/a http://example.com/b'
         scopes = scope.split()
         credentials = AppAssertionCredentials(scopes=scopes)
-        self.assertEqual(credentials.scopes, None)
-        self.assertEqual(credentials.assertion_type, None)
+        assert credentials.scopes is None
+        assert credentials.assertion_type is None
         warn_mock.assert_called_once_with(_SCOPES_WARNING)
 
     def test_to_json(self):
         credentials = AppAssertionCredentials()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials.to_json()
 
     def test_from_json(self):
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             AppAssertionCredentials.from_json({})
 
     @mock.patch('oauth2client.contrib._metadata.get_token',
@@ -75,15 +76,15 @@ class AppAssertionCredentialsTests(unittest2.TestCase):
         credentials = AppAssertionCredentials()
         credentials.invalid = False
         credentials.service_account_email = 'a@example.com'
-        self.assertIsNone(credentials.access_token)
+        assert credentials.access_token is None
         credentials.get_access_token(http=http_mock)
-        self.assertEqual(credentials.access_token, 'A')
-        self.assertTrue(credentials.access_token_expired)
+        assert credentials.access_token == 'A'
+        assert credentials.access_token_expired is True
         get_token.assert_called_with(http_request,
                                      service_account='a@example.com')
         credentials.get_access_token(http=http_mock)
-        self.assertEqual(credentials.access_token, 'B')
-        self.assertFalse(credentials.access_token_expired)
+        assert credentials.access_token == 'B'
+        assert credentials.access_token_expired is False
         get_token.assert_called_with(http_request,
                                      service_account='a@example.com')
         get_info.assert_not_called()
@@ -97,21 +98,21 @@ class AppAssertionCredentialsTests(unittest2.TestCase):
         credentials = AppAssertionCredentials()
         credentials.invalid = False
         credentials.service_account_email = 'a@example.com'
-        with self.assertRaises(HttpAccessTokenRefreshError):
+        with pytest.raises(HttpAccessTokenRefreshError):
             credentials._refresh(http_request)
 
     def test_serialization_data(self):
         credentials = AppAssertionCredentials()
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             getattr(credentials, 'serialization_data')
 
     def test_create_scoped_required(self):
         credentials = AppAssertionCredentials()
-        self.assertFalse(credentials.create_scoped_required())
+        assert credentials.create_scoped_required() is False
 
     def test_sign_blob_not_implemented(self):
         credentials = AppAssertionCredentials([])
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             credentials.sign_blob(b'blob')
 
     @mock.patch('oauth2client.contrib._metadata.get_service_account_info',
@@ -120,11 +121,11 @@ class AppAssertionCredentialsTests(unittest2.TestCase):
         http_request = mock.MagicMock()
         http_mock = mock.MagicMock(request=http_request)
         credentials = AppAssertionCredentials()
-        self.assertTrue(credentials.invalid)
-        self.assertIsNone(credentials.scopes)
+        assert credentials.invalid is True
+        assert credentials.scopes is None
         scopes = credentials.retrieve_scopes(http_mock)
-        self.assertEqual(scopes, SERVICE_ACCOUNT_INFO['scopes'])
-        self.assertFalse(credentials.invalid)
+        assert scopes == SERVICE_ACCOUNT_INFO['scopes']
+        assert credentials.invalid is False
         credentials.retrieve_scopes(http_mock)
         # Assert scopes weren't refetched
         metadata.assert_called_once_with(http_request,
@@ -136,7 +137,7 @@ class AppAssertionCredentialsTests(unittest2.TestCase):
         http_request = mock.MagicMock()
         http_mock = mock.MagicMock(request=http_request)
         credentials = AppAssertionCredentials(email='b@example.com')
-        with self.assertRaises(httplib2.HttpLib2Error):
+        with pytest.raises(httplib2.HttpLib2Error):
             credentials.retrieve_scopes(http_mock)
 
         metadata.assert_called_once_with(http_request,
@@ -148,7 +149,7 @@ class AppAssertionCredentialsTests(unittest2.TestCase):
         try:
             os.path.isdir = lambda path: True
             credentials = AppAssertionCredentials()
-            with self.assertRaises(NotImplementedError):
+            with pytest.raises(NotImplementedError):
                 save_to_well_known_file(credentials)
         finally:
             os.path.isdir = ORIGINAL_ISDIR

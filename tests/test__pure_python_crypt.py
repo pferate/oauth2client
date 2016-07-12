@@ -18,6 +18,7 @@ import os
 
 import mock
 from pyasn1_modules import pem
+import pytest
 import rsa
 import six
 import unittest2
@@ -56,7 +57,7 @@ class TestRsaVerifier(unittest2.TestCase):
 
         verifier = RsaVerifier.from_string(self._load_public_key_bytes(),
                                            is_x509_cert=False)
-        self.assertTrue(verifier.verify(to_sign, actual_signature))
+        assert verifier.verify(to_sign, actual_signature) is True
 
     def test_verify_unicode_success(self):
         to_sign = u'foo'
@@ -65,46 +66,46 @@ class TestRsaVerifier(unittest2.TestCase):
 
         verifier = RsaVerifier.from_string(self._load_public_key_bytes(),
                                            is_x509_cert=False)
-        self.assertTrue(verifier.verify(to_sign, actual_signature))
+        assert verifier.verify(to_sign, actual_signature) is True
 
     def test_verify_failure(self):
         verifier = RsaVerifier.from_string(self._load_public_key_bytes(),
                                            is_x509_cert=False)
         bad_signature1 = b''
-        self.assertFalse(verifier.verify(b'foo', bad_signature1))
+        assert verifier.verify(b'foo', bad_signature1) is False
         bad_signature2 = b'a'
-        self.assertFalse(verifier.verify(b'foo', bad_signature2))
+        assert verifier.verify(b'foo', bad_signature2) is False
 
     def test_from_string_pub_key(self):
         public_key = self._load_public_key_bytes()
         verifier = RsaVerifier.from_string(public_key, is_x509_cert=False)
-        self.assertIsInstance(verifier, RsaVerifier)
-        self.assertIsInstance(verifier._pubkey, rsa.key.PublicKey)
+        assert isinstance(verifier, RsaVerifier)
+        assert isinstance(verifier._pubkey, rsa.key.PublicKey)
 
     def test_from_string_pub_key_unicode(self):
         public_key = _from_bytes(self._load_public_key_bytes())
         verifier = RsaVerifier.from_string(public_key, is_x509_cert=False)
-        self.assertIsInstance(verifier, RsaVerifier)
-        self.assertIsInstance(verifier._pubkey, rsa.key.PublicKey)
+        assert isinstance(verifier, RsaVerifier)
+        assert isinstance(verifier._pubkey, rsa.key.PublicKey)
 
     def test_from_string_pub_cert(self):
         public_cert = self._load_public_cert_bytes()
         verifier = RsaVerifier.from_string(public_cert, is_x509_cert=True)
-        self.assertIsInstance(verifier, RsaVerifier)
-        self.assertIsInstance(verifier._pubkey, rsa.key.PublicKey)
+        assert isinstance(verifier, RsaVerifier)
+        assert isinstance(verifier._pubkey, rsa.key.PublicKey)
 
     def test_from_string_pub_cert_unicode(self):
         public_cert = _from_bytes(self._load_public_cert_bytes())
         verifier = RsaVerifier.from_string(public_cert, is_x509_cert=True)
-        self.assertIsInstance(verifier, RsaVerifier)
-        self.assertIsInstance(verifier._pubkey, rsa.key.PublicKey)
+        assert isinstance(verifier, RsaVerifier)
+        assert isinstance(verifier._pubkey, rsa.key.PublicKey)
 
     def test_from_string_pub_cert_failure(self):
         cert_bytes = self._load_public_cert_bytes()
         true_der = rsa.pem.load_pem(cert_bytes, 'CERTIFICATE')
         with mock.patch('rsa.pem.load_pem',
                         return_value=true_der + b'extra') as load_pem:
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 RsaVerifier.from_string(cert_bytes, is_x509_cert=True)
             load_pem.assert_called_once_with(cert_bytes, 'CERTIFICATE')
 
@@ -133,20 +134,20 @@ class TestRsaSigner(unittest2.TestCase):
     def test_from_string_pkcs1(self):
         key_bytes = self._load_pkcs1_key_bytes()
         signer = RsaSigner.from_string(key_bytes)
-        self.assertIsInstance(signer, RsaSigner)
-        self.assertIsInstance(signer._key, rsa.key.PrivateKey)
+        assert isinstance(signer, RsaSigner)
+        assert isinstance(signer._key, rsa.key.PrivateKey)
 
     def test_from_string_pkcs1_unicode(self):
         key_bytes = _from_bytes(self._load_pkcs1_key_bytes())
         signer = RsaSigner.from_string(key_bytes)
-        self.assertIsInstance(signer, RsaSigner)
-        self.assertIsInstance(signer._key, rsa.key.PrivateKey)
+        assert isinstance(signer, RsaSigner)
+        assert isinstance(signer._key, rsa.key.PrivateKey)
 
     def test_from_string_pkcs8(self):
         key_bytes = self._load_pkcs8_key_bytes()
         signer = RsaSigner.from_string(key_bytes)
-        self.assertIsInstance(signer, RsaSigner)
-        self.assertIsInstance(signer._key, rsa.key.PrivateKey)
+        assert isinstance(signer, RsaSigner)
+        assert isinstance(signer._key, rsa.key.PrivateKey)
 
     def test_from_string_pkcs8_extra_bytes(self):
         key_bytes = self._load_pkcs8_key_bytes()
@@ -157,7 +158,7 @@ class TestRsaSigner(unittest2.TestCase):
         with mock.patch('pyasn1.codec.der.decoder.decode') as mock_decode:
             key_info, remaining = None, 'extra'
             mock_decode.return_value = (key_info, remaining)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 RsaSigner.from_string(key_bytes)
             # Verify mock was called.
             mock_decode.assert_called_once_with(
@@ -166,15 +167,15 @@ class TestRsaSigner(unittest2.TestCase):
     def test_from_string_pkcs8_unicode(self):
         key_bytes = _from_bytes(self._load_pkcs8_key_bytes())
         signer = RsaSigner.from_string(key_bytes)
-        self.assertIsInstance(signer, RsaSigner)
-        self.assertIsInstance(signer._key, rsa.key.PrivateKey)
+        assert isinstance(signer, RsaSigner)
+        assert isinstance(signer._key, rsa.key.PrivateKey)
 
     def test_from_string_pkcs12(self):
         key_bytes = self._load_pkcs12_key_bytes()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             RsaSigner.from_string(key_bytes)
 
     def test_from_string_bogus_key(self):
         key_bytes = 'bogus-key'
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             RsaSigner.from_string(key_bytes)

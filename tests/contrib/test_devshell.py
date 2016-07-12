@@ -21,6 +21,7 @@ import socket
 import threading
 
 import mock
+import pytest
 import unittest2
 
 from oauth2client._helpers import _from_bytes
@@ -50,20 +51,20 @@ class TestCredentialInfoResponse(unittest2.TestCase):
 
     def test_constructor_with_non_list(self):
         json_non_list = '{}'
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             CredentialInfoResponse(json_non_list)
 
     def test_constructor_with_bad_json(self):
         json_non_list = '{BADJSON'
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             CredentialInfoResponse(json_non_list)
 
     def test_constructor_empty_list(self):
         info_response = CredentialInfoResponse('[]')
-        self.assertEqual(info_response.user_email, None)
-        self.assertEqual(info_response.project_id, None)
-        self.assertEqual(info_response.access_token, None)
-        self.assertEqual(info_response.expires_in, None)
+        assert info_response.user_email is None
+        assert info_response.project_id is None
+        assert info_response.access_token is None
+        assert info_response.expires_in is None
 
     def test_constructor_full_list(self):
         user_email = 'user_email'
@@ -73,10 +74,10 @@ class TestCredentialInfoResponse(unittest2.TestCase):
         json_string = json.dumps(
             [user_email, project_id, access_token, expires_in])
         info_response = CredentialInfoResponse(json_string)
-        self.assertEqual(info_response.user_email, user_email)
-        self.assertEqual(info_response.project_id, project_id)
-        self.assertEqual(info_response.access_token, access_token)
-        self.assertEqual(info_response.expires_in, expires_in)
+        assert info_response.user_email == user_email
+        assert info_response.project_id == project_id
+        assert info_response.access_token == access_token
+        assert info_response.expires_in == expires_in
 
 
 class Test_SendRecv(unittest2.TestCase):
@@ -84,7 +85,7 @@ class Test_SendRecv(unittest2.TestCase):
     def test_port_zero(self):
         with mock.patch('oauth2client.contrib.devshell.os') as os_mod:
             os_mod.getenv = mock.MagicMock(name='getenv', return_value=0)
-            with self.assertRaises(NoDevshellServer):
+            with pytest.raises(NoDevshellServer):
                 _SendRecv()
             os_mod.getenv.assert_called_once_with(DEVSHELL_ENV, 0)
 
@@ -102,7 +103,7 @@ class Test_SendRecv(unittest2.TestCase):
             with mock.patch('oauth2client.contrib.devshell.socket') as socket:
                 socket.socket = mock.MagicMock(name='socket',
                                                return_value=sock)
-                with self.assertRaises(CommunicationError):
+                with pytest.raises(CommunicationError):
                     _SendRecv()
                 os_mod.getenv.assert_called_once_with(DEVSHELL_ENV, 0)
                 socket.socket.assert_called_once_with()
@@ -117,7 +118,7 @@ class Test_SendRecv(unittest2.TestCase):
                     mock.call.recv(6),
                     mock.call.recv(6),  # From the check above
                 ]
-                self.assertEqual(sock.method_calls, expected_sock_calls)
+                assert sock.method_calls == expected_sock_calls
 
 
 class _AuthReferenceServer(threading.Thread):
@@ -177,7 +178,7 @@ class _AuthReferenceServer(threading.Thread):
 class DevshellCredentialsTests(unittest2.TestCase):
 
     def test_signals_no_server(self):
-        with self.assertRaises(NoDevshellServer):
+        with pytest.raises(NoDevshellServer):
             DevshellCredentials()
 
     def test_bad_message_to_mock_server(self):
@@ -186,7 +187,7 @@ class DevshellCredentialsTests(unittest2.TestCase):
             '%d\n%s' % (len(request_content), request_content))
         response_message = 'foobar'
         with _AuthReferenceServer(response_message) as auth_server:
-            self.assertFalse(auth_server.bad_request)
+            assert auth_server.bad_request is False
             sock = socket.socket()
             port = int(os.getenv(DEVSHELL_ENV, 0))
             sock.connect(('localhost', port))
@@ -198,20 +199,20 @@ class DevshellCredentialsTests(unittest2.TestCase):
             to_read = int(len_str) - len(result)
             result += sock.recv(to_read, socket.MSG_WAITALL).decode()
 
-        self.assertTrue(auth_server.bad_request)
-        self.assertEqual(result, response_message)
+        assert auth_server.bad_request is True
+        assert result == response_message
 
     def test_request_response(self):
         with _AuthReferenceServer():
             response = _SendRecv()
-            self.assertEqual(response.user_email, 'joe@example.com')
-            self.assertEqual(response.project_id, 'fooproj')
-            self.assertEqual(response.access_token, 'sometoken')
+            assert response.user_email == 'joe@example.com'
+            assert response.project_id == 'fooproj'
+            assert response.access_token == 'sometoken'
 
     def test_no_refresh_token(self):
         with _AuthReferenceServer():
             creds = DevshellCredentials()
-            self.assertEquals(None, creds.refresh_token)
+            assert creds.refresh_token is None
 
     @mock.patch.object(devshell, '_UTCNOW')
     def test_reads_credentials(self, utcnow):
@@ -219,36 +220,35 @@ class DevshellCredentialsTests(unittest2.TestCase):
         utcnow.return_value = NOW
         with _AuthReferenceServer():
             creds = DevshellCredentials()
-            self.assertEqual('joe@example.com', creds.user_email)
-            self.assertEqual('fooproj', creds.project_id)
-            self.assertEqual('sometoken', creds.access_token)
-            self.assertEqual(
-                NOW + datetime.timedelta(seconds=EXPIRES_IN),
-                creds.token_expiry)
+            assert 'joe@example.com' == creds.user_email
+            assert 'fooproj' == creds.project_id
+            assert 'sometoken' == creds.access_token
+            assert NOW + datetime.timedelta(seconds=EXPIRES_IN) == \
+                creds.token_expiry
             utcnow.assert_called_once_with()
 
     def test_handles_skipped_fields(self):
         with _AuthReferenceServer('["joe@example.com"]'):
             creds = DevshellCredentials()
-            self.assertEqual('joe@example.com', creds.user_email)
-            self.assertEqual(None, creds.project_id)
-            self.assertEqual(None, creds.access_token)
-            self.assertEqual(None, creds.token_expiry)
+            assert 'joe@example.com' == creds.user_email
+            assert creds.project_id is None
+            assert creds.access_token is None
+            assert creds.token_expiry is None
 
     def test_handles_tiny_response(self):
         with _AuthReferenceServer('[]'):
             creds = DevshellCredentials()
-            self.assertEqual(None, creds.user_email)
-            self.assertEqual(None, creds.project_id)
-            self.assertEqual(None, creds.access_token)
+            assert creds.user_email is None
+            assert creds.project_id is None
+            assert creds.access_token is None
 
     def test_handles_ignores_extra_fields(self):
         with _AuthReferenceServer(
                 '["joe@example.com", "fooproj", "sometoken", 1, "extra"]'):
             creds = DevshellCredentials()
-            self.assertEqual('joe@example.com', creds.user_email)
-            self.assertEqual('fooproj', creds.project_id)
-            self.assertEqual('sometoken', creds.access_token)
+            assert 'joe@example.com' == creds.user_email
+            assert 'fooproj' == creds.project_id
+            assert 'sometoken' == creds.access_token
 
     def test_refuses_to_save_to_well_known_file(self):
         ORIGINAL_ISDIR = os.path.isdir
@@ -256,17 +256,17 @@ class DevshellCredentialsTests(unittest2.TestCase):
             os.path.isdir = lambda path: True
             with _AuthReferenceServer():
                 creds = DevshellCredentials()
-                with self.assertRaises(NotImplementedError):
+                with pytest.raises(NotImplementedError):
                     save_to_well_known_file(creds)
         finally:
             os.path.isdir = ORIGINAL_ISDIR
 
     def test_from_json(self):
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             DevshellCredentials.from_json(None)
 
     def test_serialization_data(self):
         with _AuthReferenceServer('[]'):
             credentials = DevshellCredentials()
-            with self.assertRaises(NotImplementedError):
+            with pytest.raises(NotImplementedError):
                 getattr(credentials, 'serialization_data')

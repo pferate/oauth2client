@@ -19,7 +19,6 @@ import httplib2
 import mock
 import pytest
 from six.moves import http_client
-import unittest2
 
 from oauth2client.contrib import _metadata
 
@@ -40,7 +39,7 @@ def request_mock(status, content_type, content):
     ))
 
 
-class TestMetadata(unittest2.TestCase):
+class TestMetadata:
 
     def test_get_success_json(self):
         http_request = request_mock(

@@ -43,7 +43,7 @@ class DjangoOrmTestApp(AppConfig):
 
 from django.db import models
 import mock
-import unittest2
+import pytest
 
 from oauth2client import GOOGLE_TOKEN_URI
 from oauth2client._helpers import _from_bytes
@@ -57,15 +57,19 @@ from oauth2client.contrib.django_orm import Storage
 __author__ = 'conleyo@google.com (Conley Owens)'
 
 
-class TestCredentialsField(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def setup_credentials(request):
+    request.cls.fake_model = FakeCredentialsModel()
+    request.cls.fake_model_field = \
+        request.cls.fake_model._meta.get_field('credentials')
+    request.cls.field = CredentialsField(null=True)
+    request.cls.credentials = Credentials()
+    request.cls.pickle_str = _from_bytes(
+        base64.b64encode(pickle.dumps(request.cls.credentials)))
 
-    def setUp(self):
-        self.fake_model = FakeCredentialsModel()
-        self.fake_model_field = self.fake_model._meta.get_field('credentials')
-        self.field = CredentialsField(null=True)
-        self.credentials = Credentials()
-        self.pickle_str = _from_bytes(
-            base64.b64encode(pickle.dumps(self.credentials)))
+
+@pytest.mark.usefixtures('setup_credentials')
+class TestCredentialsField:
 
     def test_field_is_text(self):
         assert self.field.get_internal_type() == 'TextField'
@@ -107,18 +111,22 @@ class TestCredentialsField(unittest2.TestCase):
         assert credentials.null is True
 
 
-class TestFlowField(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def setup_flow_field(request):
+    request.cls.fake_model = request.cls.FakeFlowModel()
+    request.cls.fake_model_field = \
+        request.cls.fake_model._meta.get_field('flow')
+    request.cls.field = FlowField(null=True)
+    request.cls.flow = Flow()
+    request.cls.pickle_str = _from_bytes(
+        base64.b64encode(pickle.dumps(request.cls.flow)))
+
+
+@pytest.mark.usefixtures('setup_flow_field')
+class TestFlowField:
 
     class FakeFlowModel(models.Model):
         flow = FlowField()
-
-    def setUp(self):
-        self.fake_model = self.FakeFlowModel()
-        self.fake_model_field = self.fake_model._meta.get_field('flow')
-        self.field = FlowField(null=True)
-        self.flow = Flow()
-        self.pickle_str = _from_bytes(
-            base64.b64encode(pickle.dumps(self.flow)))
 
     def test_field_is_text(self):
         assert self.field.get_internal_type() == 'TextField'
@@ -157,24 +165,27 @@ class TestFlowField(unittest2.TestCase):
         assert flow.null is True
 
 
-class TestStorage(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def setup_storage(request):
+    access_token = 'foo'
+    client_id = 'some_client_id'
+    client_secret = 'cOuDdkfjxxnv+'
+    refresh_token = '1/0/a.df219fjls0'
+    token_expiry = datetime.datetime.utcnow()
+    user_agent = 'refresh_checker/1.0'
 
-    def setUp(self):
-        access_token = 'foo'
-        client_id = 'some_client_id'
-        client_secret = 'cOuDdkfjxxnv+'
-        refresh_token = '1/0/a.df219fjls0'
-        token_expiry = datetime.datetime.utcnow()
-        user_agent = 'refresh_checker/1.0'
+    request.cls.credentials = OAuth2Credentials(
+        access_token, client_id, client_secret,
+        refresh_token, token_expiry, GOOGLE_TOKEN_URI,
+        user_agent)
 
-        self.credentials = OAuth2Credentials(
-            access_token, client_id, client_secret,
-            refresh_token, token_expiry, GOOGLE_TOKEN_URI,
-            user_agent)
+    request.cls.key_name = 'id'
+    request.cls.key_value = '1'
+    request.cls.property_name = 'credentials'
 
-        self.key_name = 'id'
-        self.key_value = '1'
-        self.property_name = 'credentials'
+
+@pytest.mark.usefixtures('setup_storage')
+class TestStorage:
 
     def test_constructor(self):
         storage = Storage(FakeCredentialsModel, self.key_name,

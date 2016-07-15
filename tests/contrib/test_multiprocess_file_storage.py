@@ -23,8 +23,8 @@ import tempfile
 
 import fasteners
 import mock
+import pytest
 from six import StringIO
-import unittest2
 
 from oauth2client.client import OAuth2Credentials
 from oauth2client.contrib import multiprocess_file_storage
@@ -75,19 +75,23 @@ def _generate_token_response_http(new_token='new_token'):
     return http
 
 
-class MultiprocessStorageBehaviorTests(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def temp_file(request):
+    _filehandle, filename = tempfile.mkstemp('oauth2client_test.data')
+    os.close(_filehandle)
+    request.cls.filename = filename
 
-    def setUp(self):
-        filehandle, self.filename = tempfile.mkstemp(
-            'oauth2client_test.data')
-        os.close(filehandle)
-
-    def tearDown(self):
+    def fin():
         try:
-            os.unlink(self.filename)
-            os.unlink('{0}.lock'.format(self.filename))
-        except OSError:  # pragma: NO COVER
+            os.unlink(request.cls.filename)
+            os.unlink('{0}.lock'.format(request.cls.filename))
+        except OSError:
             pass
+    request.addfinalizer(fin)
+
+
+@pytest.mark.usefixtures('temp_file')
+class TestMultiprocessStorageBehavior:
 
     def test_basic_operations(self):
         credentials = _create_test_credentials()
@@ -99,21 +103,21 @@ class MultiprocessStorageBehaviorTests(unittest2.TestCase):
         store.put(credentials)
         credentials = store.get()
 
-        self.assertIsNotNone(credentials)
-        self.assertEqual('foo', credentials.access_token)
+        assert credentials is not None
+        assert 'foo' == credentials.access_token
 
         # Reset internal cache, ensure credentials were saved.
         store._backend._credentials = {}
         credentials = store.get()
 
-        self.assertIsNotNone(credentials)
-        self.assertEqual('foo', credentials.access_token)
+        assert credentials is not None
+        assert 'foo' == credentials.access_token
 
         # Delete credentials
         store.delete()
         credentials = store.get()
 
-        self.assertIsNone(credentials)
+        assert credentials is None
 
     def test_single_process_refresh(self):
         store = multiprocess_file_storage.MultiprocessFileStorage(
@@ -123,10 +127,10 @@ class MultiprocessStorageBehaviorTests(unittest2.TestCase):
 
         http = _generate_token_response_http()
         credentials.refresh(http)
-        self.assertEqual(credentials.access_token, 'new_token')
+        assert credentials.access_token == 'new_token'
 
         retrieved = store.get()
-        self.assertEqual(retrieved.access_token, 'new_token')
+        assert retrieved.access_token == 'new_token'
 
     def test_multi_process_refresh(self):
         # This will test that two processes attempting to refresh credentials
@@ -143,7 +147,7 @@ class MultiprocessStorageBehaviorTests(unittest2.TestCase):
                 self.filename, 'multi-process')
 
             credentials = store.get()
-            self.assertIsNotNone(credentials)
+            assert credentials is not None
 
             # Make sure this thread gets to refresh first.
             original_acquire_lock = store.acquire_lock
@@ -159,24 +163,24 @@ class MultiprocessStorageBehaviorTests(unittest2.TestCase):
             http = _generate_token_response_http('b')
             credentials.refresh(http)
 
-            self.assertEqual(credentials.access_token, 'b')
+            assert credentials.access_token == 'b'
 
         check_event = multiprocessing.Event()
         with scoped_child_process(child_process_func, check_event=check_event):
             # The lock should be currently held by the child process.
-            self.assertFalse(
-                store._backend._process_lock.acquire(blocking=False))
+            assert store._backend._process_lock.acquire(blocking=False) \
+                is False
             check_event.set()
 
             # The child process will refresh first, so we should end up
             # with 'b' as the token.
             http = mock.Mock()
             credentials.refresh(http=http)
-            self.assertEqual(credentials.access_token, 'b')
-            self.assertFalse(http.request.called)
+            assert credentials.access_token == 'b'
+            assert http.request.called is False
 
         retrieved = store.get()
-        self.assertEqual(retrieved.access_token, 'b')
+        assert retrieved.access_token == 'b'
 
     def test_read_only_file_fail_lock(self):
         credentials = _create_test_credentials()
@@ -194,42 +198,30 @@ class MultiprocessStorageBehaviorTests(unittest2.TestCase):
             store = multiprocess_file_storage.MultiprocessFileStorage(
                 self.filename, 'fail-lock')
             store.put(credentials)
-            self.assertTrue(store._backend._read_only)
+            assert store._backend._read_only is True
 
         # These credentials should still be in the store's memory-only cache.
-        self.assertIsNotNone(store.get())
+        assert store.get() is not None
 
 
-class MultiprocessStorageUnitTests(unittest2.TestCase):
-
-    def setUp(self):
-        filehandle, self.filename = tempfile.mkstemp(
-            'oauth2client_test.data')
-        os.close(filehandle)
-
-    def tearDown(self):
-        try:
-            os.unlink(self.filename)
-            os.unlink('{0}.lock'.format(self.filename))
-        except OSError:  # pragma: NO COVER
-            pass
+@pytest.mark.usefixtures('temp_file')
+class TestMultiprocessStorageUnit:
 
     def test__create_file_if_needed(self):
-        self.assertFalse(
-            multiprocess_file_storage._create_file_if_needed(self.filename))
+        assert multiprocess_file_storage._create_file_if_needed(
+            self.filename) is False
         os.unlink(self.filename)
-        self.assertTrue(
-            multiprocess_file_storage._create_file_if_needed(self.filename))
-        self.assertTrue(
-            os.path.exists(self.filename))
+        assert multiprocess_file_storage._create_file_if_needed(
+            self.filename) is True
+        assert os.path.exists(self.filename) is True
 
     def test__get_backend(self):
         backend_one = multiprocess_file_storage._get_backend('file_a')
         backend_two = multiprocess_file_storage._get_backend('file_a')
         backend_three = multiprocess_file_storage._get_backend('file_b')
 
-        self.assertIs(backend_one, backend_two)
-        self.assertIsNot(backend_one, backend_three)
+        assert backend_one is backend_two
+        assert backend_one is not backend_three
 
     def test__read_write_credentials_file(self):
         credentials = _create_test_credentials()
@@ -240,38 +232,33 @@ class MultiprocessStorageUnitTests(unittest2.TestCase):
 
         contents.seek(0)
         data = json.load(contents)
-        self.assertEqual(data['file_version'], 2)
-        self.assertTrue(data['credentials']['key'])
+        assert data['file_version'] == 2
+        assert bool(data['credentials']['key']) is True
 
         # Read it back.
         contents.seek(0)
         results = multiprocess_file_storage._load_credentials_file(contents)
-        self.assertEqual(
-            results['key'].access_token, credentials.access_token)
+        assert results['key'].access_token == credentials.access_token
 
         # Add an invalid credential and try reading it back. It should ignore
         # the invalid one but still load the valid one.
         data['credentials']['invalid'] = '123'
         results = multiprocess_file_storage._load_credentials_file(
             StringIO(json.dumps(data)))
-        self.assertNotIn('invalid', results)
-        self.assertEqual(
-            results['key'].access_token, credentials.access_token)
+        assert 'invalid' not in results
+        assert results['key'].access_token == credentials.access_token
 
     def test__load_credentials_file_invalid_json(self):
         contents = StringIO('{[')
-        self.assertEqual(
-            multiprocess_file_storage._load_credentials_file(contents), {})
+        assert multiprocess_file_storage._load_credentials_file(contents) == {}
 
     def test__load_credentials_file_no_file_version(self):
         contents = StringIO('{}')
-        self.assertEqual(
-            multiprocess_file_storage._load_credentials_file(contents), {})
+        assert multiprocess_file_storage._load_credentials_file(contents) == {}
 
     def test__load_credentials_file_bad_file_version(self):
         contents = StringIO(json.dumps({'file_version': 1}))
-        self.assertEqual(
-            multiprocess_file_storage._load_credentials_file(contents), {})
+        assert multiprocess_file_storage._load_credentials_file(contents) == {}
 
     def test__load_credentials_no_open_file(self):
         backend = multiprocess_file_storage._get_backend(self.filename)
@@ -285,7 +272,7 @@ class MultiprocessStorageUnitTests(unittest2.TestCase):
         backend._process_lock = mock.Mock()
         backend._process_lock.acquire.return_value = False
         backend.acquire_lock()
-        self.assertIsNone(backend._file)
+        assert backend._file is None
 
     def test_release_lock_with_no_file(self):
         backend = multiprocess_file_storage._get_backend(self.filename)
@@ -298,16 +285,12 @@ class MultiprocessStorageUnitTests(unittest2.TestCase):
         backend = multiprocess_file_storage._get_backend(self.filename)
 
         credentials = _create_test_credentials()
-        self.assertFalse(backend._refresh_predicate(credentials))
+        assert backend._refresh_predicate(credentials) is False
 
         credentials.invalid = True
-        self.assertTrue(backend._refresh_predicate(credentials))
+        assert backend._refresh_predicate(credentials) is True
 
         credentials = _create_test_credentials(
             expiration=(
                 datetime.datetime.utcnow() - datetime.timedelta(seconds=3600)))
-        self.assertTrue(backend._refresh_predicate(credentials))
-
-
-if __name__ == '__main__':  # pragma: NO COVER
-    unittest2.main()
+        assert backend._refresh_predicate(credentials) is True

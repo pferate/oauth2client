@@ -33,7 +33,6 @@ import pytest
 import six
 from six.moves import http_client
 from six.moves import urllib
-import unittest2
 
 from oauth2client import client
 from oauth2client import GOOGLE_REVOKE_URI
@@ -120,7 +119,87 @@ def load_and_cache(existing_file, fakename, cache_mock):
     cache_mock.cache[fakename] = {client_type: client_info}
 
 
-class CredentialsTests(unittest2.TestCase):
+def reset_env(env):
+    """Set the environment variable 'env' to 'value'."""
+    os.environ.pop(env, None)
+
+
+@pytest.fixture(scope='function')
+def google_credentials(request):
+    request.cls.os_name = os.name
+    client.SETTINGS.env_name = None
+
+    def fin():
+        reset_env('SERVER_SOFTWARE')
+        reset_env(GOOGLE_APPLICATION_CREDENTIALS)
+        reset_env('APPDATA')
+        os.name = request.cls.os_name
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope='function')
+def basic_credentials(request):
+    access_token = 'foo'
+    client_id = 'some_client_id'
+    client_secret = 'cOuDdkfjxxnv+'
+    refresh_token = '1/0/a.df219fjls0'
+    token_expiry = datetime.datetime.utcnow()
+    user_agent = 'refresh_checker/1.0'
+    request.cls.credentials = OAuth2Credentials(
+        access_token, client_id, client_secret,
+        refresh_token, token_expiry, GOOGLE_TOKEN_URI,
+        user_agent, revoke_uri=GOOGLE_REVOKE_URI, scopes='foo',
+        token_info_uri=GOOGLE_TOKEN_INFO_URI)
+
+    # Provoke a failure if @util.positional is not respected.
+    request.cls.old_positional_enforcement = (
+        oauth2client_util.positional_parameters_enforcement)
+    oauth2client_util.positional_parameters_enforcement = (
+        oauth2client_util.POSITIONAL_EXCEPTION)
+
+    def fin():
+        oauth2client_util.positional_parameters_enforcement = (
+            request.cls.old_positional_enforcement)
+    request.addfinalizer(fin)
+
+
+@pytest.fixture()
+def access_token_credentials(request):
+    access_token = 'foo'
+    user_agent = 'refresh_checker/1.0'
+    request.cls.credentials = AccessTokenCredentials(
+        access_token, user_agent, revoke_uri=GOOGLE_REVOKE_URI)
+
+
+@pytest.fixture()
+def assertion_credentials(request):
+    user_agent = 'fun/2.0'
+    request.cls.credentials = AssertionCredentialsTestImpl(
+        request.cls.assertion_type, user_agent=user_agent)
+
+
+@pytest.fixture()
+def oauth2_web_server_flow(request):
+    request.cls.flow = OAuth2WebServerFlow(
+        client_id='client_id+1',
+        client_secret='secret+1',
+        scope='foo',
+        redirect_uri=OOB_CALLBACK_URN,
+        user_agent='unittest-sample/1.0',
+        revoke_uri='dummy_revoke_uri',
+    )
+
+
+@pytest.fixture()
+def from_code_credentials(request):
+    request.cls.client_id = 'client_id_abc'
+    request.cls.client_secret = 'secret_use_code'
+    request.cls.scope = 'foo'
+    request.cls.code = '12345abcde'
+    request.cls.redirect_uri = 'postmessage'
+
+
+class TestCredentials:
 
     def test_to_from_json(self):
         credentials = Credentials()
@@ -263,7 +342,7 @@ class CredentialsTests(unittest2.TestCase):
         assert credentials.__dict__ == {}
 
 
-class TestStorage(unittest2.TestCase):
+class TestStorage:
 
     def test_locked_get_abstract(self):
         storage = Storage()
@@ -298,21 +377,8 @@ def mock_module_import(module):
             del sys.modules[entry]
 
 
-class GoogleCredentialsTests(unittest2.TestCase):
-
-    def setUp(self):
-        self.os_name = os.name
-        client.SETTINGS.env_name = None
-
-    def tearDown(self):
-        self.reset_env('SERVER_SOFTWARE')
-        self.reset_env(GOOGLE_APPLICATION_CREDENTIALS)
-        self.reset_env('APPDATA')
-        os.name = self.os_name
-
-    def reset_env(self, env):
-        """Set the environment variable 'env' to 'value'."""
-        os.environ.pop(env, None)
+@pytest.mark.usefixtures("google_credentials")
+class TestGoogleCredentials:
 
     def validate_service_account_credentials(self, credentials):
         assert isinstance(credentials, ServiceAccountCredentials)
@@ -900,30 +966,8 @@ def _token_revoke_test_helper(testcase, status, revoke_raise,
     testcase.credentials.set_store(current_store)
 
 
-class BasicCredentialsTests(unittest2.TestCase):
-
-    def setUp(self):
-        access_token = 'foo'
-        client_id = 'some_client_id'
-        client_secret = 'cOuDdkfjxxnv+'
-        refresh_token = '1/0/a.df219fjls0'
-        token_expiry = datetime.datetime.utcnow()
-        user_agent = 'refresh_checker/1.0'
-        self.credentials = OAuth2Credentials(
-            access_token, client_id, client_secret,
-            refresh_token, token_expiry, GOOGLE_TOKEN_URI,
-            user_agent, revoke_uri=GOOGLE_REVOKE_URI, scopes='foo',
-            token_info_uri=GOOGLE_TOKEN_INFO_URI)
-
-        # Provoke a failure if @util.positional is not respected.
-        self.old_positional_enforcement = (
-            oauth2client_util.positional_parameters_enforcement)
-        oauth2client_util.positional_parameters_enforcement = (
-            oauth2client_util.POSITIONAL_EXCEPTION)
-
-    def tearDown(self):
-        oauth2client_util.positional_parameters_enforcement = (
-            self.old_positional_enforcement)
+@pytest.mark.usefixtures('basic_credentials')
+class TestBasicCredentials:
 
     def test_token_refresh_success(self):
         for status_code in REFRESH_STATUS_CODES:
@@ -1524,13 +1568,8 @@ class BasicCredentialsTests(unittest2.TestCase):
             assert self.credentials.id_token == body
 
 
-class AccessTokenCredentialsTests(unittest2.TestCase):
-
-    def setUp(self):
-        access_token = 'foo'
-        user_agent = 'refresh_checker/1.0'
-        self.credentials = AccessTokenCredentials(access_token, user_agent,
-                                                  revoke_uri=GOOGLE_REVOKE_URI)
+@pytest.mark.usefixtures("access_token_credentials")
+class TestAccessTokenCredentials:
 
     def test_token_refresh_success(self):
         for status_code in REFRESH_STATUS_CODES:
@@ -1568,19 +1607,16 @@ class AccessTokenCredentialsTests(unittest2.TestCase):
         assert b'Bearer foo' == content[b'Authorization']
 
 
-class TestAssertionCredentials(unittest2.TestCase):
+class AssertionCredentialsTestImpl(AssertionCredentials):
+
+    def _generate_assertion(self):
+        return TestAssertionCredentials.assertion_text
+
+
+@pytest.mark.usefixtures("assertion_credentials")
+class TestAssertionCredentials:
     assertion_text = 'This is the assertion'
     assertion_type = 'http://www.google.com/assertionType'
-
-    class AssertionCredentialsTestImpl(AssertionCredentials):
-
-        def _generate_assertion(self):
-            return TestAssertionCredentials.assertion_text
-
-    def setUp(self):
-        user_agent = 'fun/2.0'
-        self.credentials = self.AssertionCredentialsTestImpl(
-            self.assertion_type, user_agent=user_agent)
 
     def test__generate_assertion_abstract(self):
         credentials = AssertionCredentials(None)
@@ -1619,7 +1655,7 @@ class TestAssertionCredentials(unittest2.TestCase):
             credentials.sign_blob(b'blob')
 
 
-class UpdateQueryParamsTest(unittest2.TestCase):
+class TestUpdateQueryParams:
     def test_update_query_params_no_params(self):
         uri = 'http://www.google.com'
         updated = _update_query_params(uri, {'a': 'b'})
@@ -1632,7 +1668,7 @@ class UpdateQueryParamsTest(unittest2.TestCase):
         assertUrisEqual(self, updated, hardcoded_update)
 
 
-class ExtractIdTokenTest(unittest2.TestCase):
+class TestExtractIdToken:
     """Tests _extract_id_token()."""
 
     def test_extract_success(self):
@@ -1653,17 +1689,8 @@ class ExtractIdTokenTest(unittest2.TestCase):
             _extract_id_token(jwt)
 
 
-class OAuth2WebServerFlowTest(unittest2.TestCase):
-
-    def setUp(self):
-        self.flow = OAuth2WebServerFlow(
-            client_id='client_id+1',
-            client_secret='secret+1',
-            scope='foo',
-            redirect_uri=OOB_CALLBACK_URN,
-            user_agent='unittest-sample/1.0',
-            revoke_uri='dummy_revoke_uri',
-        )
+@pytest.mark.usefixtures("oauth2_web_server_flow")
+class TestOAuth2WebServerFlow:
 
     def test_construct_authorize_url(self):
         authorize_url = self.flow.step1_get_authorize_url(state='state+1')
@@ -2059,7 +2086,7 @@ class OAuth2WebServerFlowTest(unittest2.TestCase):
         assert credentials.id_token == body
 
 
-class FlowFromCachedClientsecrets(unittest2.TestCase):
+class TestFlowFromCachedClientsecrets:
 
     def test_flow_from_clientsecrets_cached(self):
         cache_mock = CacheMock()
@@ -2161,14 +2188,8 @@ class FlowFromCachedClientsecrets(unittest2.TestCase):
         loadfile_mock.assert_called_once_with(filename, cache=cache)
 
 
-class CredentialsFromCodeTests(unittest2.TestCase):
-
-    def setUp(self):
-        self.client_id = 'client_id_abc'
-        self.client_secret = 'secret_use_code'
-        self.scope = 'foo'
-        self.code = '12345abcde'
-        self.redirect_uri = 'postmessage'
+@pytest.mark.usefixtures("from_code_credentials")
+class TestCredentialsFromCode:
 
     def test_exchange_code_for_token(self):
         token = 'asdfghjkl'
@@ -2230,7 +2251,7 @@ class CredentialsFromCodeTests(unittest2.TestCase):
                 self.code, http=http)
 
 
-class MemoryCacheTests(unittest2.TestCase):
+class TestMemoryCache:
 
     def test_get_set_delete(self):
         m = MemoryCache()
@@ -2242,7 +2263,7 @@ class MemoryCacheTests(unittest2.TestCase):
         assert m.get('foo') is None
 
 
-class Test__save_private_file(unittest2.TestCase):
+class Test__save_private_file:
 
     def _save_helper(self, filename):
         contents = []
@@ -2270,7 +2291,7 @@ class Test__save_private_file(unittest2.TestCase):
         self._save_helper(filename)
 
 
-class Test__get_application_default_credential_GAE(unittest2.TestCase):
+class Test__get_application_default_credential_GAE:
 
     @mock.patch.dict('sys.modules', {
         'oauth2client.contrib.appengine': mock.Mock()})
@@ -2283,7 +2304,7 @@ class Test__get_application_default_credential_GAE(unittest2.TestCase):
         creds_kls.assert_called_once_with([])
 
 
-class Test__get_application_default_credential_GCE(unittest2.TestCase):
+class Test__get_application_default_credential_GCE:
 
     @mock.patch.dict('sys.modules', {
         'oauth2client.contrib.gce': mock.Mock()})
@@ -2296,7 +2317,7 @@ class Test__get_application_default_credential_GCE(unittest2.TestCase):
         creds_kls.assert_called_once_with()
 
 
-class Test__require_crypto_or_die(unittest2.TestCase):
+class Test__require_crypto_or_die:
 
     @mock.patch.object(client, 'HAS_CRYPTO', new=True)
     def test_with_crypto(self):
@@ -2308,7 +2329,7 @@ class Test__require_crypto_or_die(unittest2.TestCase):
             client._require_crypto_or_die()
 
 
-class TestDeviceFlowInfo(unittest2.TestCase):
+class TestDeviceFlowInfo:
 
     DEVICE_CODE = 'e80ff179-fd65-416c-9dbf-56a23e5d23e4'
     USER_CODE = '4bbd8b82-fc73-11e5-adf3-00c2c63e5792'

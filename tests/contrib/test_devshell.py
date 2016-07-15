@@ -22,7 +22,6 @@ import threading
 
 import mock
 import pytest
-import unittest2
 
 from oauth2client._helpers import _from_bytes
 from oauth2client._helpers import _to_bytes
@@ -47,7 +46,7 @@ DEFAULT_CREDENTIAL_JSON = json.dumps([
 ])
 
 
-class TestCredentialInfoResponse(unittest2.TestCase):
+class TestCredentialInfoResponse:
 
     def test_constructor_with_non_list(self):
         json_non_list = '{}'
@@ -80,7 +79,7 @@ class TestCredentialInfoResponse(unittest2.TestCase):
         assert info_response.expires_in == expires_in
 
 
-class Test_SendRecv(unittest2.TestCase):
+class Test_SendRecv:
 
     def test_port_zero(self):
         with mock.patch('oauth2client.contrib.devshell.os') as os_mod:
@@ -175,7 +174,7 @@ class _AuthReferenceServer(threading.Thread):
             s.close()
 
 
-class DevshellCredentialsTests(unittest2.TestCase):
+class TestDevshellCredentials:
 
     def test_signals_no_server(self):
         with pytest.raises(NoDevshellServer):

@@ -19,7 +19,6 @@ import threading
 
 import keyring
 import mock
-import unittest2
 
 from oauth2client import GOOGLE_TOKEN_URI
 from oauth2client.client import OAuth2Credentials
@@ -29,7 +28,7 @@ from oauth2client.contrib.keyring_storage import Storage
 __author__ = 'jcgregorio@google.com (Joe Gregorio)'
 
 
-class KeyringStorageTests(unittest2.TestCase):
+class TestKeyringStorage:
 
     def test_constructor(self):
         service_name = 'my_unit_test'

@@ -28,7 +28,6 @@ import tempfile
 import pytest
 import six
 from six.moves import http_client
-import unittest2
 
 from oauth2client import file
 from oauth2client.client import AccessTokenCredentials
@@ -43,23 +42,23 @@ except:  # pragma: NO COVER
 
 __author__ = 'jcgregorio@google.com (Joe Gregorio)'
 
-_filehandle, FILENAME = tempfile.mkstemp('oauth2client_test.data')
-os.close(_filehandle)
 
+@pytest.fixture(scope='function')
+def temp_file(request):
+    _filehandle, filename = tempfile.mkstemp('oauth2client_test.data')
+    os.close(_filehandle)
+    request.cls.temp_filename = filename
 
-class OAuth2ClientFileTests(unittest2.TestCase):
-
-    def tearDown(self):
+    def fin():
         try:
-            os.unlink(FILENAME)
+            os.unlink(request.cls.temp_filename)
         except OSError:
             pass
+    request.addfinalizer(fin)
 
-    def setUp(self):
-        try:
-            os.unlink(FILENAME)
-        except OSError:
-            pass
+
+@pytest.mark.usefixtures('temp_file')
+class TestOAuth2ClientFile:
 
     def _create_test_credentials(self, client_id='some_client_id',
                                  expiration=None):
@@ -77,38 +76,39 @@ class OAuth2ClientFileTests(unittest2.TestCase):
         return credentials
 
     def test_non_existent_file_storage(self):
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         credentials = s.get()
         assert credentials is None
 
-    @unittest2.skipIf(not hasattr(os, 'symlink'), 'No symlink available')
+    @pytest.mark.skipif(not hasattr(os, 'symlink'),
+                        reason='No symlink available')
     def test_no_sym_link_credentials(self):
-        SYMFILENAME = FILENAME + '.sym'
-        os.symlink(FILENAME, SYMFILENAME)
-        s = file.Storage(SYMFILENAME)
+        symfilename = self.temp_filename + '.sym'
+        os.symlink(self.temp_filename, symfilename)
+        s = file.Storage(symfilename)
         try:
             with pytest.raises(file.CredentialsFileSymbolicLinkError):
                 s.get()
         finally:
-            os.unlink(SYMFILENAME)
+            os.unlink(symfilename)
 
     def test_pickle_and_json_interop(self):
         # Write a file with a pickled OAuth2Credentials.
         credentials = self._create_test_credentials()
 
-        f = open(FILENAME, 'wb')
+        f = open(self.temp_filename, 'wb')
         pickle.dump(credentials, f)
         f.close()
 
         # Storage should be not be able to read that object, as the capability
         # to read and write credentials as pickled objects has been removed.
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         read_credentials = s.get()
         assert read_credentials is None
 
         # Now write it back out and confirm it has been rewritten as JSON
         s.put(credentials)
-        with open(FILENAME) as f:
+        with open(self.temp_filename) as f:
             data = json.load(f)
 
         assert data['access_token'] == 'foo'
@@ -120,7 +120,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
                       datetime.timedelta(minutes=15))
         credentials = self._create_test_credentials(expiration=expiration)
 
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         s.put(credentials)
         credentials = s.get()
         new_cred = copy.copy(credentials)
@@ -143,7 +143,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
                       datetime.timedelta(minutes=15))
         credentials = self._create_test_credentials(expiration=expiration)
 
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         s.put(credentials)
         credentials = s.get()
         new_cred = copy.copy(credentials)
@@ -172,7 +172,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
                       datetime.timedelta(minutes=15))
         credentials = self._create_test_credentials(expiration=expiration)
 
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         s.put(credentials)
         credentials = s.get()
         new_cred = copy.copy(credentials)
@@ -187,7 +187,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
                       datetime.timedelta(minutes=15))
         credentials = self._create_test_credentials(expiration=expiration)
 
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         s.put(credentials)
         credentials = s.get()
         new_cred = copy.copy(credentials)
@@ -217,7 +217,7 @@ class OAuth2ClientFileTests(unittest2.TestCase):
     def test_credentials_delete(self):
         credentials = self._create_test_credentials()
 
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         s.put(credentials)
         credentials = s.get()
         assert credentials is not None
@@ -231,16 +231,16 @@ class OAuth2ClientFileTests(unittest2.TestCase):
 
         credentials = AccessTokenCredentials(access_token, user_agent)
 
-        s = file.Storage(FILENAME)
+        s = file.Storage(self.temp_filename)
         credentials = s.put(credentials)
         credentials = s.get()
 
         assert credentials is not None
         assert 'foo' == credentials.access_token
 
-        assert os.path.exists(FILENAME)
+        assert os.path.exists(self.temp_filename)
 
         if os.name == 'posix':  # pragma: NO COVER
-            mode = os.stat(FILENAME).st_mode
+            mode = os.stat(self.temp_filename).st_mode
             assert '0o600' == oct(stat.S_IMODE(mode))
             assert 0o600 == stat.S_IMODE(mode)

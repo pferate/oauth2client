@@ -35,7 +35,6 @@ import httplib2
 import mock
 import pytest
 from six.moves import urllib
-import unittest2
 import webapp2
 from webtest import TestApp
 
@@ -109,7 +108,97 @@ class Http2Mock(object):
         return self, json.dumps(self.content)
 
 
-class TestAppAssertionCredentials(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def flow_property(request):
+    request.cls.flow = flow_from_clientsecrets(
+        datafile('client_secrets.json'),
+        'foo',
+        redirect_uri='oob')
+
+
+@pytest.fixture()
+def setup_testbed(request):
+    request.cls.testbed = testbed.Testbed()
+    request.cls.testbed.activate()
+    request.cls.testbed.init_datastore_v3_stub()
+
+    def fin():
+        request.cls.testbed.deactivate()
+    request.addfinalizer(fin)
+
+
+@pytest.fixture()
+def testbed_memcache_user(request):
+    request.cls.testbed = testbed.Testbed()
+    request.cls.testbed.activate()
+    request.cls.testbed.init_datastore_v3_stub()
+    request.cls.testbed.init_memcache_stub()
+    request.cls.testbed.init_user_stub()
+
+    def fin():
+        request.cls.testbed.deactivate()
+    request.addfinalizer(fin)
+
+
+@pytest.fixture()
+def testbed_memcache(request):
+    request.cls.testbed = testbed.Testbed()
+    request.cls.testbed.activate()
+    request.cls.testbed.init_datastore_v3_stub()
+    request.cls.testbed.init_memcache_stub()
+
+    def fin():
+        request.cls.testbed.deactivate()
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope='function')
+def default_decorator(request):
+
+    request.cls.default_decorator = OAuth2Decorator(
+        client_id='foo_client_id', client_secret='foo_client_secret',
+        scope=['foo_scope', 'bar_scope'], user_agent='foo')
+
+
+@pytest.fixture(scope='class')
+def mock_httplib(request):
+    request.cls.httplib2_orig = httplib2.Http
+    httplib2.Http = Http2Mock
+
+    def fin():
+        httplib2.Http = request.cls.httplib2_orig
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope='function')
+def credentials_property(request):
+    access_token = 'foo'
+    client_id = 'some_client_id'
+    client_secret = 'cOuDdkfjxxnv+'
+    refresh_token = '1/0/a.df219fjls0'
+    token_expiry = datetime.datetime.utcnow()
+    user_agent = 'refresh_checker/1.0'
+    request.cls.credentials = OAuth2Credentials(
+        access_token, client_id, client_secret,
+        refresh_token, token_expiry, GOOGLE_TOKEN_URI,
+        user_agent)
+
+
+@pytest.fixture(scope='function')
+def storage_by_key_name(request):
+    access_token = 'foo'
+    client_id = 'some_client_id'
+    client_secret = 'cOuDdkfjxxnv+'
+    refresh_token = '1/0/a.df219fjls0'
+    token_expiry = datetime.datetime.utcnow()
+    user_agent = 'refresh_checker/1.0'
+    request.cls.credentials = OAuth2Credentials(
+        access_token, client_id, client_secret,
+        refresh_token, token_expiry, GOOGLE_TOKEN_URI,
+        user_agent)
+
+
+class TestAppAssertionCredentials:
     account_name = "service_account_name@appspot.com"
     signature = "signature"
 
@@ -291,20 +380,8 @@ class TestFlowModel(db.Model):
     flow = FlowProperty()
 
 
-class FlowPropertyTest(unittest2.TestCase):
-
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-
-        self.flow = flow_from_clientsecrets(
-            datafile('client_secrets.json'),
-            'foo',
-            redirect_uri='oob')
-
-    def tearDown(self):
-        self.testbed.deactivate()
+@pytest.mark.usefixtures('setup_testbed', 'flow_property')
+class TestFlowProperty:
 
     def test_flow_get_put(self):
         instance = TestFlowModel(
@@ -329,26 +406,8 @@ class TestCredentialsModel(db.Model):
     credentials = CredentialsProperty()
 
 
-class CredentialsPropertyTest(unittest2.TestCase):
-
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-
-        access_token = 'foo'
-        client_id = 'some_client_id'
-        client_secret = 'cOuDdkfjxxnv+'
-        refresh_token = '1/0/a.df219fjls0'
-        token_expiry = datetime.datetime.utcnow()
-        user_agent = 'refresh_checker/1.0'
-        self.credentials = OAuth2Credentials(
-            access_token, client_id, client_secret,
-            refresh_token, token_expiry, GOOGLE_TOKEN_URI,
-            user_agent)
-
-    def tearDown(self):
-        self.testbed.deactivate()
+@pytest.mark.usefixtures('setup_testbed', 'credentials_property')
+class TestCredentialsProperty:
 
     def test_credentials_get_put(self):
         instance = TestCredentialsModel(
@@ -383,28 +442,8 @@ def _http_request(*args, **kwargs):
     return resp, content
 
 
-class StorageByKeyNameTest(unittest2.TestCase):
-
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
-        self.testbed.init_user_stub()
-
-        access_token = 'foo'
-        client_id = 'some_client_id'
-        client_secret = 'cOuDdkfjxxnv+'
-        refresh_token = '1/0/a.df219fjls0'
-        token_expiry = datetime.datetime.utcnow()
-        user_agent = 'refresh_checker/1.0'
-        self.credentials = OAuth2Credentials(
-            access_token, client_id, client_secret,
-            refresh_token, token_expiry, GOOGLE_TOKEN_URI,
-            user_agent)
-
-    def tearDown(self):
-        self.testbed.deactivate()
+@pytest.mark.usefixtures('testbed_memcache_user', 'storage_by_key_name')
+class TestStorageByKeyName:
 
     def test_bad_ctor(self):
         with pytest.raises(ValueError):
@@ -576,21 +615,13 @@ class MockRequestHandler(object):
     request = MockRequest()
 
 
-class DecoratorTests(unittest2.TestCase):
+@pytest.mark.usefixtures('testbed_memcache_user', 'default_decorator',
+                         'mock_httplib')
+class TestDecorator:
 
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
-        self.testbed.init_user_stub()
-
-        decorator = OAuth2Decorator(client_id='foo_client_id',
-                                    client_secret='foo_client_secret',
-                                    scope=['foo_scope', 'bar_scope'],
-                                    user_agent='foo')
-
-        self._finish_setup(decorator, user_mock=UserMock)
+    @pytest.fixture(autouse=True)
+    def finish_default_decorator(self, default_decorator):
+        self._finish_setup(self.default_decorator, user_mock=UserMock)
 
     def _finish_setup(self, decorator, user_mock):
         self.decorator = decorator
@@ -634,12 +665,6 @@ class DecoratorTests(unittest2.TestCase):
         })
         self.current_user = user_mock()
         users.get_current_user = self.current_user
-        self.httplib2_orig = httplib2.Http
-        httplib2.Http = Http2Mock
-
-    def tearDown(self):
-        self.testbed.deactivate()
-        httplib2.Http = self.httplib2_orig
 
     def test_in_error(self):
         # NOTE: This branch is never reached. _in_error is not set by any code
@@ -985,17 +1010,9 @@ class DecoratorTests(unittest2.TestCase):
         assert decorator._in_error is False
 
 
-class DecoratorXsrfSecretTests(unittest2.TestCase):
+@pytest.mark.usefixtures('testbed_memcache')
+class TestDecoratorXsrfSecret:
     """Test xsrf_secret_key."""
-
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
-
-    def tearDown(self):
-        self.testbed.deactivate()
 
     def test_build_and_parse_state(self):
         secret = appengine.xsrf_secret_key()
@@ -1034,29 +1051,13 @@ class DecoratorXsrfSecretTests(unittest2.TestCase):
         assert site_key.secret == secret
 
 
-class DecoratorXsrfProtectionTests(unittest2.TestCase):
+@pytest.mark.usefixtures('testbed_memcache')
+class TestDecoratorXsrfProtection:
     """Test _build_state_value and _parse_state_value."""
-
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
-
-    def tearDown(self):
-        self.testbed.deactivate()
 
     def test_build_and_parse_state(self):
         state = appengine._build_state_value(MockRequestHandler(), UserMock())
-<<<<<<< master
-        self.assertEqual(
-            'https://example.org',
-            appengine._parse_state_value(state, UserMock()))
-        redirect_uri = appengine._parse_state_value(state[1:], UserMock())
-        self.assertIsNone(redirect_uri)
-=======
         assert 'https://example.org' == \
             appengine._parse_state_value(state, UserMock())
-        with pytest.raises(appengine.InvalidXsrfTokenError):
-            appengine._parse_state_value(state[1:], UserMock())
->>>>>>> Update assertion statements
+        redirect_uri = appengine._parse_state_value(state[1:], UserMock())
+        assert redirect_uri is None

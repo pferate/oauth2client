@@ -23,7 +23,6 @@ import mock
 import pytest
 from six.moves import http_client
 from six.moves.urllib import parse
-import unittest2
 
 from oauth2client.client import FlowExchangeError, OAuth2WebServerFlow
 from oauth2client.contrib import django_util
@@ -39,7 +38,28 @@ urlpatterns = [
 urlpatterns += [url(r'^oauth2/', include(site.urls))]
 
 
-class OAuth2SetupTest(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def setup_session(request):
+    request.cls.factory = test.RequestFactory()
+    from django.contrib.sessions.backends.file import SessionStore
+
+    store = SessionStore()
+    store.save()
+    request.cls.session = store
+
+
+@pytest.fixture(scope='function')
+def setup_callback(request):
+    request.cls.CSRF_TOKEN = "token"
+    request.cls.RETURN_URL = "http://return-url.com"
+    request.cls.fake_state = {
+        'csrf_token': request.cls.CSRF_TOKEN,
+        'return_url': request.cls.RETURN_URL,
+        'scopes': django.conf.settings.GOOGLE_OAUTH2_SCOPES
+    }
+
+
+class TestOAuth2Setup:
 
     @mock.patch("oauth2client.contrib.django_util.clientsecrets")
     def test_settings_initialize(self, clientsecrets):
@@ -96,17 +116,8 @@ class OAuth2SetupTest(unittest2.TestCase):
         django.conf.settings.MIDDLEWARE_CLASSES = old_classes
 
 
-class TestWithSession(test.TestCase):
-    def setUp(self):
-        self.factory = test.RequestFactory()
-        from django.contrib.sessions.backends.file import SessionStore
-
-        store = SessionStore()
-        store.save()
-        self.session = store
-
-
-class OAuth2EnabledDecoratorTest(TestWithSession):
+@pytest.mark.usefixtures('setup_session')
+class TestOAuth2EnabledDecorator:
     def test_no_credentials_without_credentials(self):
         request = self.factory.get('/test')
         request.session = self.session
@@ -163,7 +174,8 @@ class OAuth2EnabledDecoratorTest(TestWithSession):
         assert request.oauth.has_credentials() is False
 
 
-class OAuth2RequiredDecoratorTest(TestWithSession):
+@pytest.mark.usefixtures('setup_session')
+class TestOAuth2RequiredDecorator:
     def test_redirects_without_credentials(self):
         request = self.factory.get('/test')
         request.session = self.session
@@ -235,7 +247,8 @@ class OAuth2RequiredDecoratorTest(TestWithSession):
         assert response.status_code == 302
 
 
-class Oauth2AuthorizeTest(TestWithSession):
+@pytest.mark.usefixtures('setup_session')
+class TestOauth2Authorize:
 
     def test_authorize_works(self):
         request = self.factory.get('oauth2/oauth2authorize')
@@ -251,20 +264,8 @@ class Oauth2AuthorizeTest(TestWithSession):
         assert isinstance(response, http.HttpResponseRedirect)
 
 
-class Oauth2CallbackTest(TestWithSession):
-
-    def setUp(self):
-        global mycallback
-        mycallback = mock.Mock()
-
-        super(Oauth2CallbackTest, self).setUp()
-        self.CSRF_TOKEN = "token"
-        self.RETURN_URL = "http://return-url.com"
-        self.fake_state = {
-            'csrf_token': self.CSRF_TOKEN,
-            'return_url': self.RETURN_URL,
-            'scopes': django.conf.settings.GOOGLE_OAUTH2_SCOPES
-        }
+@pytest.mark.usefixtures('setup_session', 'setup_callback')
+class TestOauth2CallbackTest:
 
     @mock.patch("oauth2client.contrib.django_util.views.pickle")
     def test_callback_works(self, pickle):
@@ -390,7 +391,8 @@ class MockObjectWithSession(object):
         self.session = session
 
 
-class StorageTest(TestWithSession):
+@pytest.mark.usefixtures('setup_session')
+class TestStorage:
 
     def test_session_delete(self):
         self.session[storage._CREDENTIALS_KEY] = "test_val"

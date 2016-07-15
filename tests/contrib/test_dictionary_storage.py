@@ -14,8 +14,6 @@
 
 """Unit tests for oauth2client.contrib.dictionary_storage"""
 
-import unittest2
-
 from oauth2client import GOOGLE_TOKEN_URI
 from oauth2client.client import OAuth2Credentials
 from oauth2client.contrib.dictionary_storage import DictionaryStorage
@@ -37,7 +35,7 @@ def _generate_credentials(scopes=None):
         scopes=scopes)
 
 
-class DictionaryStorageTests(unittest2.TestCase):
+class TestDictionaryStorage:
 
     def test_constructor_defaults(self):
         dictionary = {}

@@ -27,7 +27,6 @@ import mock
 import pytest
 import rsa
 from six import BytesIO
-import unittest2
 
 from oauth2client import crypt
 from oauth2client.service_account import _JWTAccessCredentials
@@ -45,22 +44,41 @@ def datafile(filename):
         return file_obj.read()
 
 
-class ServiceAccountCredentialsTests(unittest2.TestCase):
+@pytest.fixture()
+def setup_service_account(request):
+    crypt.configure_module()
+    request.cls.client_id = '123'
+    request.cls.service_account_email = 'dummy@google.com'
+    request.cls.private_key_id = 'ABCDEF'
+    request.cls.private_key = datafile('pem_from_pkcs12.pem')
+    request.cls.scopes = ['dummy_scope']
+    request.cls.signer = crypt.Signer.from_string(request.cls.private_key)
+    request.cls.credentials = ServiceAccountCredentials(
+        request.cls.service_account_email,
+        request.cls.signer,
+        private_key_id=request.cls.private_key_id,
+        client_id=request.cls.client_id,
+    )
 
-    def setUp(self):
-        crypt.configure_module()
-        self.client_id = '123'
-        self.service_account_email = 'dummy@google.com'
-        self.private_key_id = 'ABCDEF'
-        self.private_key = datafile('pem_from_pkcs12.pem')
-        self.scopes = ['dummy_scope']
-        self.signer = crypt.Signer.from_string(self.private_key)
-        self.credentials = ServiceAccountCredentials(
-            self.service_account_email,
-            self.signer,
-            private_key_id=self.private_key_id,
-            client_id=self.client_id,
-        )
+
+@pytest.fixture()
+def setup_jwt_access(request):
+    request.cls.client_id = '123'
+    request.cls.service_account_email = 'dummy@google.com'
+    request.cls.private_key_id = 'ABCDEF'
+    request.cls.private_key = datafile('pem_from_pkcs12.pem')
+    request.cls.signer = crypt.Signer.from_string(request.cls.private_key)
+    request.cls.url = 'https://test.url.com'
+    request.cls.jwt = _JWTAccessCredentials(
+        request.cls.service_account_email,
+        request.cls.signer,
+        private_key_id=request.cls.private_key_id,
+        client_id=request.cls.client_id,
+        additional_claims={'aud': request.cls.url})
+
+
+@pytest.mark.usefixtures('setup_service_account')
+class TestServiceAccountCredentials:
 
     def test__to_json_override(self):
         signer = object()
@@ -370,20 +388,8 @@ T3_EXPIRY = T3 + TOKEN_LIFE
 T3_EXPIRY_DATE = T3_DATE + datetime.timedelta(seconds=TOKEN_LIFE)
 
 
-class JWTAccessCredentialsTests(unittest2.TestCase):
-
-    def setUp(self):
-        self.client_id = '123'
-        self.service_account_email = 'dummy@google.com'
-        self.private_key_id = 'ABCDEF'
-        self.private_key = datafile('pem_from_pkcs12.pem')
-        self.signer = crypt.Signer.from_string(self.private_key)
-        self.url = 'https://test.url.com'
-        self.jwt = _JWTAccessCredentials(self.service_account_email,
-                                         self.signer,
-                                         private_key_id=self.private_key_id,
-                                         client_id=self.client_id,
-                                         additional_claims={'aud': self.url})
+@pytest.mark.usefixtures('setup_jwt_access')
+class TestJWTAccessCredentials:
 
     @mock.patch('oauth2client.service_account._UTCNOW')
     @mock.patch('oauth2client.client._UTCNOW')

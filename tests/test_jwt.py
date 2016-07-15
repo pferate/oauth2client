@@ -20,7 +20,6 @@ import time
 
 import mock
 import pytest
-import unittest2
 
 from oauth2client import crypt
 from oauth2client.client import Credentials
@@ -52,12 +51,52 @@ def datafile(filename):
         return file_obj.read()
 
 
-class CryptTests(unittest2.TestCase):
+@pytest.fixture()
+def setup_crypt(request):
+    request.cls.format_ = 'p12'
+    request.cls.signer = crypt.OpenSSLSigner
+    request.cls.verifier = crypt.OpenSSLVerifier
 
-    def setUp(self):
-        self.format_ = 'p12'
-        self.signer = crypt.OpenSSLSigner
-        self.verifier = crypt.OpenSSLVerifier
+
+@pytest.fixture()
+def setup_openssl(request):
+    request.cls.format_ = 'pem'
+    request.cls.signer = crypt.OpenSSLSigner
+    request.cls.verifier = crypt.OpenSSLVerifier
+
+
+@pytest.fixture()
+def setup_pycrypto(request):
+    request.cls.format_ = 'pem'
+    request.cls.signer = crypt.PyCryptoSigner
+    request.cls.verifier = crypt.PyCryptoVerifier
+
+
+@pytest.fixture()
+def setup_signed_jwt(request):
+    request.cls.format_ = 'p12'
+    crypt.Signer = crypt.OpenSSLSigner
+
+
+@pytest.fixture()
+def setup_signed_jwt_openssl(request):
+    request.cls.format_ = 'pem'
+    crypt.Signer = crypt.OpenSSLSigner
+
+
+@pytest.fixture()
+def setup_signed_jwt_pycrypto(request):
+    request.cls.format_ = 'pem'
+    crypt.Signer = crypt.PyCryptoSigner
+
+
+@pytest.mark.usefixtures("setup_crypt")
+class TestCrypt:
+
+    def test_fixture(self):
+        assert self.format_ == 'p12'
+        assert self.signer == crypt.OpenSSLSigner
+        assert self.verifier == crypt.OpenSSLVerifier
 
     def test_sign_and_verify(self):
         self._check_sign_and_verify('privatekey.' + self.format_)
@@ -221,27 +260,26 @@ class CryptTests(unittest2.TestCase):
         assert isinstance(verifier, self.verifier)
 
 
-class PEMCryptTestsPyCrypto(CryptTests):
+@pytest.mark.usefixtures("setup_pycrypto")
+class TestCryptPEMPyCrypto(TestCrypt):
 
-    def setUp(self):
-        self.format_ = 'pem'
-        self.signer = crypt.PyCryptoSigner
-        self.verifier = crypt.PyCryptoVerifier
-
-
-class PEMCryptTestsOpenSSL(CryptTests):
-
-    def setUp(self):
-        self.format_ = 'pem'
-        self.signer = crypt.OpenSSLSigner
-        self.verifier = crypt.OpenSSLVerifier
+    def test_fixture(self):
+        assert self.format_ == 'pem'
+        assert self.signer == crypt.PyCryptoSigner
+        assert self.verifier == crypt.PyCryptoVerifier
 
 
-class SignedJwtAssertionCredentialsTests(unittest2.TestCase):
+@pytest.mark.usefixtures("setup_openssl")
+class TestCryptPEMOpenSSL(TestCrypt):
 
-    def setUp(self):
-        self.format_ = 'p12'
-        crypt.Signer = crypt.OpenSSLSigner
+    def test_fixture(self):
+        assert self.format_ == 'pem'
+        assert self.signer == crypt.OpenSSLSigner
+        assert self.verifier == crypt.OpenSSLVerifier
+
+
+@pytest.mark.usefixtures("setup_signed_jwt")
+class TestSignedJwtAssertionCredentials:
 
     def _make_credentials(self):
         private_key = datafile('privatekey.' + self.format_)
@@ -258,6 +296,10 @@ class SignedJwtAssertionCredentialsTests(unittest2.TestCase):
         else:  # pragma: NO COVER
             raise ValueError('Unexpected format.')
         return credentials
+
+    def test_fixture(self):
+        assert self.format_ == 'p12'
+        assert crypt.Signer == crypt.OpenSSLSigner
 
     def test_credentials_good(self):
         credentials = self._make_credentials()
@@ -309,23 +351,25 @@ class SignedJwtAssertionCredentialsTests(unittest2.TestCase):
         os.unlink(filename)
 
 
-class PEMSignedJwtAssertionCredentialsOpenSSLTests(
-        SignedJwtAssertionCredentialsTests):
+@pytest.mark.usefixtures("setup_signed_jwt_openssl")
+class TestPEMSignedJwtAssertionCredentialsOpenSSL(
+        TestSignedJwtAssertionCredentials):
 
-    def setUp(self):
-        self.format_ = 'pem'
-        crypt.Signer = crypt.OpenSSLSigner
-
-
-class PEMSignedJwtAssertionCredentialsPyCryptoTests(
-        SignedJwtAssertionCredentialsTests):
-
-    def setUp(self):
-        self.format_ = 'pem'
-        crypt.Signer = crypt.PyCryptoSigner
+    def test_fixture(self):
+        assert self.format_ == 'pem'
+        assert crypt.Signer == crypt.OpenSSLSigner
 
 
-class TestHasOpenSSLFlag(unittest2.TestCase):
+@pytest.mark.usefixtures("setup_signed_jwt_pycrypto")
+class TestPEMSignedJwtAssertionCredentialsPyCrypto(
+        TestSignedJwtAssertionCredentials):
+
+    def test_fixture(self):
+        assert self.format_ == 'pem'
+        assert crypt.Signer == crypt.PyCryptoSigner
+
+
+class TestHasOpenSSLFlag:
 
     def test_true(self):
         assert HAS_OPENSSL is True

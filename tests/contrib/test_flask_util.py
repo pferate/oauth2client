@@ -23,7 +23,6 @@ import mock
 import pytest
 import six.moves.http_client as httplib
 import six.moves.urllib.parse as urlparse
-import unittest2
 
 from oauth2client import clientsecrets
 from oauth2client import GOOGLE_AUTH_URI
@@ -66,16 +65,19 @@ class Http2Mock(object):
         return self
 
 
-class FlaskOAuth2Tests(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def setup_flask(request):
+    request.cls.app = flask.Flask(__name__)
+    request.cls.app.testing = True
+    request.cls.app.config['SECRET_KEY'] = 'notasecert'
+    request.cls.oauth2 = FlaskOAuth2(
+        request.cls.app,
+        client_id='client_idz',
+        client_secret='client_secretz')
 
-    def setUp(self):
-        self.app = flask.Flask(__name__)
-        self.app.testing = True
-        self.app.config['SECRET_KEY'] = 'notasecert'
-        self.oauth2 = FlaskOAuth2(
-            self.app,
-            client_id='client_idz',
-            client_secret='client_secretz')
+
+@pytest.mark.usefixtures('setup_flask')
+class TestFlaskOAuth2:
 
     def _generate_credentials(self, scopes=None):
         return OAuth2Credentials(

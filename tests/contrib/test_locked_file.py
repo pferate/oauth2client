@@ -19,12 +19,11 @@ import tempfile
 
 import mock
 import pytest
-import unittest2
 
 from oauth2client.contrib import locked_file
 
 
-class TestOpener(unittest2.TestCase):
+class TestOpener:
     def _make_one(self):
         _filehandle, filename = tempfile.mkstemp()
         os.close(_filehandle)
@@ -159,7 +158,6 @@ class TestPosixOpener(TestOpener):
             mock_os_open.side_effect = [
                 OSError(errno.EEXIST, ''), mock.Mock()]
             instance.open_and_lock(10, 1)
-            print(mock_os_open.call_args_list)
             assert instance.is_locked() is True
             mock_sleep.assert_called_with(1)
 
@@ -178,7 +176,7 @@ class TestPosixOpener(TestOpener):
         assert instance._fh.close.called is True
 
 
-class TestLockedFile(unittest2.TestCase):
+class TestLockedFile:
 
     @mock.patch('oauth2client.contrib.locked_file._PosixOpener')
     def _make_one(self, opener_ctor_mock):

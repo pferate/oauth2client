@@ -19,7 +19,6 @@ from google.appengine.ext import ndb
 from google.appengine.ext import testbed
 import mock
 import pytest
-import unittest2
 
 from oauth2client.client import Credentials
 from oauth2client.client import flow_from_clientsecrets
@@ -39,16 +38,20 @@ class TestNDBModel(ndb.Model):
     creds = CredentialsNDBProperty()
 
 
-class TestFlowNDBProperty(unittest2.TestCase):
+@pytest.fixture()
+def testbed_memcache(request):
+    request.cls.testbed = testbed.Testbed()
+    request.cls.testbed.activate()
+    request.cls.testbed.init_datastore_v3_stub()
+    request.cls.testbed.init_memcache_stub()
 
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
+    def fin():
+        request.cls.testbed.deactivate()
+    request.addfinalizer(fin)
 
-    def tearDown(self):
-        self.testbed.deactivate()
+
+@pytest.mark.usefixtures('testbed_memcache')
+class TestFlowNDBProperty:
 
     def test_flow_get_put(self):
         instance = TestNDBModel(
@@ -88,16 +91,8 @@ class TestFlowNDBProperty(unittest2.TestCase):
                                                  type(flow_val))
 
 
-class TestCredentialsNDBProperty(unittest2.TestCase):
-
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
-
-    def tearDown(self):
-        self.testbed.deactivate()
+@pytest.mark.usefixtures('testbed_memcache')
+class TestCredentialsNDBProperty:
 
     def test_valid_creds_get_put(self):
         creds = Credentials()

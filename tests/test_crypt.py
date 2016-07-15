@@ -17,7 +17,6 @@ import os
 
 import mock
 import pytest
-import unittest2
 
 from oauth2client import _helpers
 from oauth2client import crypt
@@ -34,14 +33,14 @@ def datafile(filename):
         return file_obj.read()
 
 
-class Test__bad_pkcs12_key_as_pem(unittest2.TestCase):
+class Test__bad_pkcs12_key_as_pem:
 
     def test_fails(self):
         with pytest.raises(NotImplementedError):
             crypt._bad_pkcs12_key_as_pem()
 
 
-class Test_pkcs12_key_as_pem(unittest2.TestCase):
+class Test_pkcs12_key_as_pem:
 
     def _make_svc_account_creds(self, private_key_file='privatekey.p12'):
         filename = data_filename(private_key_file)
@@ -73,7 +72,7 @@ class Test_pkcs12_key_as_pem(unittest2.TestCase):
         self._succeeds_helper(password)
 
 
-class Test__verify_signature(unittest2.TestCase):
+class Test__verify_signature:
 
     def test_success_single_cert(self):
         cert_value = 'cert-value'
@@ -144,7 +143,7 @@ class Test__verify_signature(unittest2.TestCase):
             verifier.verify.assert_called_once_with(message, signature)
 
 
-class Test__check_audience(unittest2.TestCase):
+class Test__check_audience:
 
     def test_null_audience(self):
         result = crypt._check_audience(None, None)
@@ -172,7 +171,7 @@ class Test__check_audience(unittest2.TestCase):
             crypt._check_audience(payload_dict, audience2)
 
 
-class Test__verify_time_range(unittest2.TestCase):
+class Test__verify_time_range:
 
     def _exception_helper(self, payload_dict):
         exception_caught = None
@@ -252,7 +251,7 @@ class Test__verify_time_range(unittest2.TestCase):
             assert exception_caught is None
 
 
-class Test_verify_signed_jwt_with_certs(unittest2.TestCase):
+class Test_verify_signed_jwt_with_certs:
 
     def test_jwt_no_segments(self):
         exception_caught = None

@@ -22,7 +22,6 @@ import mock
 import pytest
 from six.moves import http_client
 from tests.contrib.test_metadata import request_mock
-import unittest2
 
 from oauth2client.client import HttpAccessTokenRefreshError
 from oauth2client.client import save_to_well_known_file
@@ -38,7 +37,7 @@ SERVICE_ACCOUNT_INFO = {
 }
 
 
-class AppAssertionCredentialsTests(unittest2.TestCase):
+class TestAppAssertionCredentials:
 
     def test_constructor(self):
         credentials = AppAssertionCredentials()

@@ -14,7 +14,6 @@
 """Unit tests for oauth2client._helpers."""
 
 import pytest
-import unittest2
 
 from oauth2client._helpers import _from_bytes
 from oauth2client._helpers import _json_encode
@@ -24,7 +23,7 @@ from oauth2client._helpers import _urlsafe_b64decode
 from oauth2client._helpers import _urlsafe_b64encode
 
 
-class Test__parse_pem_key(unittest2.TestCase):
+class Test__parse_pem_key:
 
     def test_valid_input(self):
         test_string = b'1234-----BEGIN FOO BAR BAZ'
@@ -37,7 +36,7 @@ class Test__parse_pem_key(unittest2.TestCase):
         assert result is None
 
 
-class Test__json_encode(unittest2.TestCase):
+class Test__json_encode:
 
     def test_dictionary_input(self):
         # Use only a single key since dictionary hash order
@@ -52,7 +51,7 @@ class Test__json_encode(unittest2.TestCase):
         assert result == '[42,1337]'
 
 
-class Test__to_bytes(unittest2.TestCase):
+class Test__to_bytes:
 
     def test_with_bytes(self):
         value = b'bytes-val'
@@ -69,7 +68,7 @@ class Test__to_bytes(unittest2.TestCase):
             _to_bytes(value)
 
 
-class Test__from_bytes(unittest2.TestCase):
+class Test__from_bytes:
 
     def test_with_unicode(self):
         value = u'bytes-val'
@@ -86,7 +85,7 @@ class Test__from_bytes(unittest2.TestCase):
             _from_bytes(value)
 
 
-class Test__urlsafe_b64encode(unittest2.TestCase):
+class Test__urlsafe_b64encode:
 
     DEADBEEF_ENCODED = b'ZGVhZGJlZWY'
 
@@ -101,7 +100,7 @@ class Test__urlsafe_b64encode(unittest2.TestCase):
         assert result == self.DEADBEEF_ENCODED
 
 
-class Test__urlsafe_b64decode(unittest2.TestCase):
+class Test__urlsafe_b64decode:
 
     def test_valid_input_bytes(self):
         test_string = b'ZGVhZGJlZWY'

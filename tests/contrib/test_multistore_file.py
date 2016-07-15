@@ -22,15 +22,11 @@ import tempfile
 
 import mock
 import pytest
-import unittest2
 
 from oauth2client import util
 from oauth2client.client import OAuth2Credentials
 from oauth2client.contrib import locked_file
 from oauth2client.contrib import multistore_file
-
-_filehandle, FILENAME = tempfile.mkstemp('oauth2client_test.data')
-os.close(_filehandle)
 
 
 class _MockLockedFile(object):
@@ -52,7 +48,7 @@ class _MockLockedFile(object):
         return self.filename_str
 
 
-class Test__dict_to_tuple_key(unittest2.TestCase):
+class Test__dict_to_tuple_key:
 
     def test_key_conversions(self):
         key1, val1 = 'somekey', 'some value'
@@ -76,19 +72,22 @@ class Test__dict_to_tuple_key(unittest2.TestCase):
         assert test_dict == dict(tuple_key)
 
 
-class MultistoreFileTests(unittest2.TestCase):
+@pytest.fixture(scope='function')
+def temp_file(request):
+    _filehandle, filename = tempfile.mkstemp('oauth2client_test.data')
+    os.close(_filehandle)
+    request.cls.temp_filename = filename
 
-    def tearDown(self):
+    def fin():
         try:
-            os.unlink(FILENAME)
+            os.unlink(request.cls.temp_filename)
         except OSError:
             pass
+    request.addfinalizer(fin)
 
-    def setUp(self):
-        try:
-            os.unlink(FILENAME)
-        except OSError:
-            pass
+
+@pytest.mark.usefixtures('temp_file')
+class TestMultistoreFile:
 
     def _create_test_credentials(self, client_id='some_client_id',
                                  expiration=None):
@@ -138,11 +137,11 @@ class MultistoreFileTests(unittest2.TestCase):
     def test_read_only_file_fail_lock(self):
         credentials = self._create_test_credentials()
 
-        open(FILENAME, 'a+b').close()
-        os.chmod(FILENAME, 0o400)
+        open(self.temp_filename, 'a+b').close()
+        os.chmod(self.temp_filename, 0o400)
 
         store = multistore_file.get_credential_storage(
-            FILENAME,
+            self.temp_filename,
             credentials.client_id,
             credentials.user_agent,
             ['some-scope', 'some-other-scope'])
@@ -150,13 +149,13 @@ class MultistoreFileTests(unittest2.TestCase):
         store.put(credentials)
         if os.name == 'posix':  # pragma: NO COVER
             assert store._multistore._read_only is True
-        os.chmod(FILENAME, 0o600)
+        os.chmod(self.temp_filename, 0o600)
 
     def test_read_only_file_fail_lock_no_warning(self):
-        open(FILENAME, 'a+b').close()
-        os.chmod(FILENAME, 0o400)
+        open(self.temp_filename, 'a+b').close()
+        os.chmod(self.temp_filename, 0o400)
 
-        multistore = multistore_file._MultiStore(FILENAME)
+        multistore = multistore_file._MultiStore(self.temp_filename)
 
         with mock.patch.object(multistore_file.logger, 'warn') as mock_warn:
             multistore._warn_on_readonly = False
@@ -164,11 +163,11 @@ class MultistoreFileTests(unittest2.TestCase):
             assert mock_warn.called is False
 
     def test_lock_skip_refresh(self):
-        with open(FILENAME, 'w') as f:
+        with open(self.temp_filename, 'w') as f:
             f.write('123')
-        os.chmod(FILENAME, 0o400)
+        os.chmod(self.temp_filename, 0o400)
 
-        multistore = multistore_file._MultiStore(FILENAME)
+        multistore = multistore_file._MultiStore(self.temp_filename)
 
         refresh_patch = mock.patch.object(
             multistore, '_refresh_data_cache')
@@ -178,12 +177,13 @@ class MultistoreFileTests(unittest2.TestCase):
             multistore._lock()
             assert refresh_mock.called is False
 
-    @unittest2.skipIf(not hasattr(os, 'symlink'), 'No symlink available')
+    @pytest.mark.skipif(not hasattr(os, 'symlink'),
+                        reason='No symlink available')
     def test_multistore_no_symbolic_link_files(self):
-        SYMFILENAME = FILENAME + 'sym'
-        os.symlink(FILENAME, SYMFILENAME)
+        symfilename = self.temp_filename + 'sym'
+        os.symlink(self.temp_filename, symfilename)
         store = multistore_file.get_credential_storage(
-            SYMFILENAME,
+            symfilename,
             'some_client_id',
             'user-agent/1.0',
             ['some-scope', 'some-other-scope'])
@@ -192,11 +192,11 @@ class MultistoreFileTests(unittest2.TestCase):
                     locked_file.CredentialsFileSymbolicLinkError):
                 store.get()
         finally:
-            os.unlink(SYMFILENAME)
+            os.unlink(symfilename)
 
     def test_multistore_non_existent_file(self):
         store = multistore_file.get_credential_storage(
-            FILENAME,
+            self.temp_filename,
             'some_client_id',
             'user-agent/1.0',
             ['some-scope', 'some-other-scope'])
@@ -208,7 +208,7 @@ class MultistoreFileTests(unittest2.TestCase):
         credentials = self._create_test_credentials()
 
         store = multistore_file.get_credential_storage(
-            FILENAME,
+            self.temp_filename,
             credentials.client_id,
             credentials.user_agent,
             ['some-scope', 'some-other-scope'])
@@ -227,14 +227,14 @@ class MultistoreFileTests(unittest2.TestCase):
         assert credentials is None
 
         if os.name == 'posix':  # pragma: NO COVER
-            assert 0o600 == stat.S_IMODE(os.stat(FILENAME).st_mode)
+            assert 0o600 == stat.S_IMODE(os.stat(self.temp_filename).st_mode)
 
     def test_multistore_file_custom_key(self):
         credentials = self._create_test_credentials()
 
         custom_key = {'myapp': 'testing', 'clientid': 'some client'}
         store = multistore_file.get_credential_storage_custom_key(
-            FILENAME, custom_key)
+            self.temp_filename, custom_key)
 
         store.put(credentials)
         stored_credentials = store.get()
@@ -252,7 +252,7 @@ class MultistoreFileTests(unittest2.TestCase):
 
         # store with string key
         store = multistore_file.get_credential_storage_custom_string_key(
-            FILENAME, 'mykey')
+            self.temp_filename, 'mykey')
 
         store.put(credentials)
         stored_credentials = store.get()
@@ -262,7 +262,7 @@ class MultistoreFileTests(unittest2.TestCase):
 
         # try retrieving with a dictionary
         multistore_file.get_credential_storage_custom_string_key(
-            FILENAME, {'key': 'mykey'})
+            self.temp_filename, {'key': 'mykey'})
         stored_credentials = store.get()
         assert stored_credentials is not None
         assert credentials.access_token == stored_credentials.access_token
@@ -278,7 +278,7 @@ class MultistoreFileTests(unittest2.TestCase):
 
         # store the credentials using the legacy key method
         store = multistore_file.get_credential_storage(
-            FILENAME, 'client_id', 'user_agent', scopes)
+            self.temp_filename, 'client_id', 'user_agent', scopes)
         store.put(credentials)
 
         # retrieve the credentials using a custom key that matches the
@@ -286,34 +286,34 @@ class MultistoreFileTests(unittest2.TestCase):
         key = {'clientId': 'client_id', 'userAgent': 'user_agent',
                'scope': util.scopes_to_string(scopes)}
         store = multistore_file.get_credential_storage_custom_key(
-            FILENAME, key)
+            self.temp_filename, key)
         stored_credentials = store.get()
 
         assert credentials.access_token == stored_credentials.access_token
 
     def test_multistore_file_get_all_keys(self):
         # start with no keys
-        keys = multistore_file.get_all_credential_keys(FILENAME)
+        keys = multistore_file.get_all_credential_keys(self.temp_filename)
         assert [] == keys
 
         # store credentials
         credentials = self._create_test_credentials(client_id='client1')
         custom_key = {'myapp': 'testing', 'clientid': 'client1'}
         store1 = multistore_file.get_credential_storage_custom_key(
-            FILENAME, custom_key)
+            self.temp_filename, custom_key)
         store1.put(credentials)
 
-        keys = multistore_file.get_all_credential_keys(FILENAME)
+        keys = multistore_file.get_all_credential_keys(self.temp_filename)
         assert [custom_key] == keys
 
         # store more credentials
         credentials = self._create_test_credentials(client_id='client2')
         string_key = 'string_key'
         store2 = multistore_file.get_credential_storage_custom_string_key(
-            FILENAME, string_key)
+            self.temp_filename, string_key)
         store2.put(credentials)
 
-        keys = multistore_file.get_all_credential_keys(FILENAME)
+        keys = multistore_file.get_all_credential_keys(self.temp_filename)
         assert len(keys) == 2
         assert custom_key in keys
         assert {'key': string_key} in keys
@@ -321,11 +321,11 @@ class MultistoreFileTests(unittest2.TestCase):
         # back to no keys
         store1.delete()
         store2.delete()
-        keys = multistore_file.get_all_credential_keys(FILENAME)
+        keys = multistore_file.get_all_credential_keys(self.temp_filename)
         assert [] == keys
 
     def _refresh_data_cache_helper(self):
-        multistore = multistore_file._MultiStore(FILENAME)
+        multistore = multistore_file._MultiStore(self.temp_filename)
         json_patch = mock.patch.object(multistore, '_locked_json_read')
 
         return multistore, json_patch
@@ -371,7 +371,7 @@ class MultistoreFileTests(unittest2.TestCase):
             assert multistore._data == {}
 
     def test__delete_credential_nonexistent(self):
-        multistore = multistore_file._MultiStore(FILENAME)
+        multistore = multistore_file._MultiStore(self.temp_filename)
 
         with mock.patch.object(multistore, '_write') as write_mock:
             multistore._data = {}

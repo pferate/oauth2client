@@ -16,13 +16,12 @@
 import os
 
 import pytest
-import unittest2
 
 from oauth2client.crypt import PyCryptoSigner
 from oauth2client.crypt import PyCryptoVerifier
 
 
-class TestPyCryptoVerifier(unittest2.TestCase):
+class TestPyCryptoVerifier:
 
     PUBLIC_CERT_FILENAME = os.path.join(os.path.dirname(__file__),
                                         'data', 'public_cert.pem')
@@ -56,7 +55,6 @@ class TestPyCryptoVerifier(unittest2.TestCase):
         verifier = PyCryptoVerifier.from_string(self._load_public_cert_bytes(),
                                                 is_x509_cert=True)
         bad_signature = b''
-        print('bad_signature: ', bad_signature)
         assert bool(verifier.verify(b'foo', bad_signature)) is False
 
     def test_from_string_unicode_key(self):
@@ -66,7 +64,7 @@ class TestPyCryptoVerifier(unittest2.TestCase):
         assert isinstance(verifier, PyCryptoVerifier)
 
 
-class TestPyCryptoSigner(unittest2.TestCase):
+class TestPyCryptoSigner:
 
     def test_from_string_bad_key(self):
         key_bytes = 'definitely-not-pem-format'

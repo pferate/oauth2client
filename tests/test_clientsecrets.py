@@ -20,7 +20,6 @@ import os
 import tempfile
 
 import pytest
-import unittest2
 
 from oauth2client import clientsecrets
 from oauth2client import GOOGLE_AUTH_URI
@@ -39,7 +38,29 @@ NONEXISTENT_FILE = os.path.join(
     os.path.dirname(__file__), 'afilethatisntthere.json')
 
 
-class Test__validate_clientsecrets(unittest2.TestCase):
+class CacheMock(object):
+    def __init__(self):
+        self.cache = {}
+        self.last_get_ns = None
+        self.last_set_ns = None
+
+    def get(self, key, namespace=''):
+        # ignoring namespace for easier testing
+        self.last_get_ns = namespace
+        return self.cache.get(key, None)
+
+    def set(self, key, value, namespace=''):
+        # ignoring namespace for easier testing
+        self.last_set_ns = namespace
+        self.cache[key] = value
+
+
+@pytest.fixture()
+def cache_mock(request):
+    request.cls.cache_mock = CacheMock()
+
+
+class Test__validate_clientsecrets:
 
     def test_with_none(self):
         with pytest.raises(clientsecrets.InvalidClientSecretsError):
@@ -150,7 +171,7 @@ class Test__validate_clientsecrets(unittest2.TestCase):
         assert result == (clientsecrets.TYPE_INSTALLED, client_info)
 
 
-class Test__loadfile(unittest2.TestCase):
+class Test__loadfile:
 
     def test_success(self):
         client_type, client_info = clientsecrets._loadfile(VALID_FILE)
@@ -179,7 +200,7 @@ class Test__loadfile(unittest2.TestCase):
             clientsecrets._loadfile(filename)
 
 
-class OAuth2CredentialsTests(unittest2.TestCase):
+class TestOAuth2Credentials:
 
     def test_validate_error(self):
         payload = (
@@ -226,26 +247,8 @@ class OAuth2CredentialsTests(unittest2.TestCase):
             assert exc_manager.exception.args[3] == errno.ENOENT
 
 
-class CachedClientsecretsTests(unittest2.TestCase):
-
-    class CacheMock(object):
-        def __init__(self):
-            self.cache = {}
-            self.last_get_ns = None
-            self.last_set_ns = None
-
-        def get(self, key, namespace=''):
-            # ignoring namespace for easier testing
-            self.last_get_ns = namespace
-            return self.cache.get(key, None)
-
-        def set(self, key, value, namespace=''):
-            # ignoring namespace for easier testing
-            self.last_set_ns = namespace
-            self.cache[key] = value
-
-    def setUp(self):
-        self.cache_mock = self.CacheMock()
+@pytest.mark.usefixtures('cache_mock')
+class TestCachedClientsecrets:
 
     def test_cache_miss(self):
         client_type, client_info = clientsecrets.loadfile(

@@ -18,27 +18,30 @@ import base64
 
 import mock
 import pytest
-import unittest2
 
 from oauth2client._helpers import _to_bytes
 from oauth2client.contrib import xsrfutil
-
-# Jan 17 2008, 5:40PM
-TEST_KEY = b'test key'
-# Jan. 17, 2008 22:40:32.081230 UTC
-TEST_TIME = 1200609642081230
-TEST_USER_ID_1 = 123832983
-TEST_USER_ID_2 = 938297432
-TEST_ACTION_ID_1 = b'some_action'
-TEST_ACTION_ID_2 = b'some_other_action'
-TEST_EXTRA_INFO_1 = b'extra_info_1'
-TEST_EXTRA_INFO_2 = b'more_extra_info'
 
 
 __author__ = 'jcgregorio@google.com (Joe Gregorio)'
 
 
-class Test_generate_token(unittest2.TestCase):
+@pytest.fixture(scope='class')
+def setup_token_info(request):
+    # Jan 17 2008, 5:40PM
+    request.cls.TEST_KEY = b'test key'
+    # Jan. 17, 2008 22:40:32.081230 UTC
+    request.cls.TEST_TIME = 1200609642081230
+    request.cls.TEST_USER_ID_1 = 123832983
+    request.cls.TEST_USER_ID_2 = 938297432
+    request.cls.TEST_ACTION_ID_1 = b'some_action'
+    request.cls.TEST_ACTION_ID_2 = b'some_other_action'
+    request.cls.TEST_EXTRA_INFO_1 = b'extra_info_1'
+    request.cls.TEST_EXTRA_INFO_2 = b'more_extra_info'
+
+
+@pytest.mark.usefixtures('setup_token_info')
+class Test_generate_token:
 
     def test_bad_positional(self):
         # Need 2 positional arguments.
@@ -54,24 +57,24 @@ class Test_generate_token(unittest2.TestCase):
         digester.digest = mock.MagicMock(name='digest', return_value=digest)
         with mock.patch('oauth2client.contrib.xsrfutil.hmac') as hmac:
             hmac.new = mock.MagicMock(name='new', return_value=digester)
-            token = xsrfutil.generate_token(TEST_KEY,
-                                            TEST_USER_ID_1,
-                                            action_id=TEST_ACTION_ID_1,
-                                            when=TEST_TIME)
-            hmac.new.assert_called_once_with(TEST_KEY)
+            token = xsrfutil.generate_token(self.TEST_KEY,
+                                            self.TEST_USER_ID_1,
+                                            action_id=self.TEST_ACTION_ID_1,
+                                            when=self.TEST_TIME)
+            hmac.new.assert_called_once_with(self.TEST_KEY)
             digester.digest.assert_called_once_with()
 
             expected_digest_calls = [
-                mock.call.update(_to_bytes(str(TEST_USER_ID_1))),
+                mock.call.update(_to_bytes(str(self.TEST_USER_ID_1))),
                 mock.call.update(xsrfutil.DELIMITER),
-                mock.call.update(TEST_ACTION_ID_1),
+                mock.call.update(self.TEST_ACTION_ID_1),
                 mock.call.update(xsrfutil.DELIMITER),
-                mock.call.update(_to_bytes(str(TEST_TIME))),
+                mock.call.update(_to_bytes(str(self.TEST_TIME))),
             ]
             assert digester.method_calls == expected_digest_calls
 
             expected_token_as_bytes = (digest + xsrfutil.DELIMITER +
-                                       _to_bytes(str(TEST_TIME)))
+                                       _to_bytes(str(self.TEST_TIME)))
             expected_token = base64.urlsafe_b64encode(
                 expected_token_as_bytes)
             assert token == expected_token
@@ -87,18 +90,18 @@ class Test_generate_token(unittest2.TestCase):
             with mock.patch('oauth2client.contrib.xsrfutil.time') as time:
                 time.time = mock.MagicMock(name='time', return_value=curr_time)
                 # when= is omitted
-                token = xsrfutil.generate_token(TEST_KEY,
-                                                TEST_USER_ID_1,
-                                                action_id=TEST_ACTION_ID_1)
+                token = xsrfutil.generate_token(
+                    self.TEST_KEY, self.TEST_USER_ID_1,
+                    action_id=self.TEST_ACTION_ID_1)
 
-                hmac.new.assert_called_once_with(TEST_KEY)
+                hmac.new.assert_called_once_with(self.TEST_KEY)
                 time.time.assert_called_once_with()
                 digester.digest.assert_called_once_with()
 
                 expected_digest_calls = [
-                    mock.call.update(_to_bytes(str(TEST_USER_ID_1))),
+                    mock.call.update(_to_bytes(str(self.TEST_USER_ID_1))),
                     mock.call.update(xsrfutil.DELIMITER),
-                    mock.call.update(TEST_ACTION_ID_1),
+                    mock.call.update(self.TEST_ACTION_ID_1),
                     mock.call.update(xsrfutil.DELIMITER),
                     mock.call.update(_to_bytes(str(int(curr_time)))),
                 ]
@@ -111,7 +114,8 @@ class Test_generate_token(unittest2.TestCase):
                 assert token == expected_token
 
 
-class Test_validate_token(unittest2.TestCase):
+@pytest.mark.usefixtures('setup_token_info')
+class Test_validate_token:
 
     def test_bad_positional(self):
         # Need 3 positional arguments.
@@ -218,57 +222,78 @@ class Test_validate_token(unittest2.TestCase):
                                             when=token_time)
 
 
-class XsrfUtilTests(unittest2.TestCase):
+@pytest.mark.usefixtures('setup_token_info')
+class TestXsrfUtil:
     """Test xsrfutil functions."""
 
     def testGenerateAndValidateToken(self):
         """Test generating and validating a token."""
-        token = xsrfutil.generate_token(TEST_KEY, TEST_USER_ID_1,
-                                        action_id=TEST_ACTION_ID_1,
-                                        when=TEST_TIME)
+        token = xsrfutil.generate_token(self.TEST_KEY,
+                                        self.TEST_USER_ID_1,
+                                        action_id=self.TEST_ACTION_ID_1,
+                                        when=self.TEST_TIME)
 
         # Check that the token is considered valid when it should be.
-        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_1,
-                                       current_time=TEST_TIME) is True
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       token,
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_1,
+                                       current_time=self.TEST_TIME) is True
 
         # Should still be valid 15 minutes later.
-        later15mins = TEST_TIME + 15 * 60
-        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_1,
+        later15mins = self.TEST_TIME + 15 * 60
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       token,
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_1,
                                        current_time=later15mins) is True
 
         # But not if beyond the timeout.
-        later2hours = TEST_TIME + 2 * 60 * 60
-        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_1,
+        later2hours = self.TEST_TIME + 2 * 60 * 60
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       token,
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_1,
                                        current_time=later2hours) is False
 
         # Or if the key is different.
-        assert xsrfutil.validate_token('another key', token, TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_1,
+        assert xsrfutil.validate_token('another key',
+                                       token,
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_1,
                                        current_time=later15mins) is False
 
         # Or the user ID....
-        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_2,
-                                       action_id=TEST_ACTION_ID_1,
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       token,
+                                       self.TEST_USER_ID_2,
+                                       action_id=self.TEST_ACTION_ID_1,
                                        current_time=later15mins) is False
 
         # Or the action ID...
-        assert xsrfutil.validate_token(TEST_KEY, token, TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_2,
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       token,
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_2,
                                        current_time=later15mins) is False
 
         # Invalid when truncated
-        assert xsrfutil.validate_token(TEST_KEY, token[:-1], TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_1,
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       token[:-1],
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_1,
                                        current_time=later15mins) is False
 
         # Invalid with extra garbage
-        assert xsrfutil.validate_token(TEST_KEY, token + b'x', TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_1,
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       token + b'x',
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_1,
                                        current_time=later15mins) is False
 
         # Invalid with token of None
-        assert xsrfutil.validate_token(TEST_KEY, None, TEST_USER_ID_1,
-                                       action_id=TEST_ACTION_ID_1) is False
+        assert xsrfutil.validate_token(self.TEST_KEY,
+                                       None,
+                                       self.TEST_USER_ID_1,
+                                       action_id=self.TEST_ACTION_ID_1
+                                       ) is False

@@ -21,7 +21,6 @@ from pyasn1_modules import pem
 import pytest
 import rsa
 import six
-import unittest2
 
 from oauth2client import _pure_python_crypt
 from oauth2client._helpers import _from_bytes
@@ -29,7 +28,7 @@ from oauth2client.crypt import RsaSigner
 from oauth2client.crypt import RsaVerifier
 
 
-class TestRsaVerifier(unittest2.TestCase):
+class TestRsaVerifier:
 
     PUBLIC_KEY_FILENAME = os.path.join(os.path.dirname(__file__),
                                        'data', 'privatekey.pub')
@@ -110,7 +109,7 @@ class TestRsaVerifier(unittest2.TestCase):
             load_pem.assert_called_once_with(cert_bytes, 'CERTIFICATE')
 
 
-class TestRsaSigner(unittest2.TestCase):
+class TestRsaSigner:
 
     PKCS1_KEY_FILENAME = os.path.join(os.path.dirname(__file__),
                                       'data', 'privatekey.pem')

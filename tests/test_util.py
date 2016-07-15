@@ -2,7 +2,6 @@
 
 import mock
 import pytest
-import unittest2
 
 from oauth2client import util
 
@@ -10,7 +9,17 @@ from oauth2client import util
 __author__ = 'jcgregorio@google.com (Joe Gregorio)'
 
 
-class PositionalTests(unittest2.TestCase):
+@pytest.fixture(scope='class')
+def restore_positional_parameters_enforcement(request):
+    old_positional_enforcement = util.positional_parameters_enforcement
+
+    def fin():
+        util.positional_parameters_enforcement = old_positional_enforcement
+    request.addfinalizer(fin)
+
+
+@pytest.mark.usefixtures('restore_positional_parameters_enforcement')
+class TestsPositional:
 
     def test_usage(self):
         util.positional_parameters_enforcement = util.POSITIONAL_EXCEPTION
@@ -68,7 +77,7 @@ class PositionalTests(unittest2.TestCase):
         assert mock_logger.warning.called is False
 
 
-class ScopeToStringTests(unittest2.TestCase):
+class TestScopeToString:
 
     def test_iterables(self):
         cases = [
@@ -88,7 +97,7 @@ class ScopeToStringTests(unittest2.TestCase):
             assert expected == util.scopes_to_string(case)
 
 
-class StringToScopeTests(unittest2.TestCase):
+class TestStringToScope:
 
     def test_conversion(self):
         cases = [
@@ -102,7 +111,7 @@ class StringToScopeTests(unittest2.TestCase):
             assert expected == util.string_to_scopes(case)
 
 
-class AddQueryParameterTests(unittest2.TestCase):
+class TestAddQueryParameter:
 
     def test__add_query_parameter(self):
         assert util._add_query_parameter('/action', 'a', None) == '/action'

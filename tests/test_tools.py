@@ -19,7 +19,6 @@ import threading
 import mock
 import pytest
 from six.moves.urllib import request
-import unittest2
 
 from oauth2client import tools
 from oauth2client.client import FlowExchangeError
@@ -28,10 +27,30 @@ from oauth2client.client import OOB_CALLBACK_URN
 try:
     import argparse
 except ImportError:  # pragma: NO COVER
-    raise unittest2.SkipTest('argparase unavailable.')
+    pytest.skip('argparase unavailable.')
 
 
-class TestClientRedirectServer(unittest2.TestCase):
+@pytest.fixture()
+def setup_run_flow(request):
+    request.cls.server = mock.Mock()
+    request.cls.flow = mock.Mock()
+    request.cls.storage = mock.Mock()
+    request.cls.credentials = mock.Mock()
+
+    request.cls.flow.step1_get_authorize_url.return_value = (
+        'http://example.com/auth')
+    request.cls.flow.step2_exchange.return_value = request.cls.credentials
+
+    request.cls.flags = argparse.Namespace(
+        noauth_local_webserver=True, logging_level='INFO')
+    request.cls.server_flags = argparse.Namespace(
+        noauth_local_webserver=False,
+        logging_level='INFO',
+        auth_host_port=[8080, ],
+        auth_host_name='localhost')
+
+
+class TestClientRedirectServer:
     """Test the ClientRedirectServer and ClientRedirectHandler classes."""
 
     def test_ClientRedirectServer(self):
@@ -52,25 +71,8 @@ class TestClientRedirectServer(unittest2.TestCase):
         assert httpd.query_params.get('code') == code
 
 
-class TestRunFlow(unittest2.TestCase):
-
-    def setUp(self):
-        self.server = mock.Mock()
-        self.flow = mock.Mock()
-        self.storage = mock.Mock()
-        self.credentials = mock.Mock()
-
-        self.flow.step1_get_authorize_url.return_value = (
-            'http://example.com/auth')
-        self.flow.step2_exchange.return_value = self.credentials
-
-        self.flags = argparse.Namespace(
-            noauth_local_webserver=True, logging_level='INFO')
-        self.server_flags = argparse.Namespace(
-            noauth_local_webserver=False,
-            logging_level='INFO',
-            auth_host_port=[8080, ],
-            auth_host_name='localhost')
+@pytest.mark.usefixtures('setup_run_flow')
+class TestRunFlow:
 
     @mock.patch.object(sys, 'argv', ['ignored', '--noauth_local_webserver'])
     @mock.patch('oauth2client.tools.logging')
@@ -188,6 +190,6 @@ class TestRunFlow(unittest2.TestCase):
         assert self.server.handle_request.called is False
 
 
-class TestMessageIfMissing(unittest2.TestCase):
+class TestMessageIfMissing:
     def test_message_if_missing(self):
         assert 'somefile.txt' in tools.message_if_missing('somefile.txt')

@@ -14,10 +14,10 @@
 
 import datetime
 
+import pytest
 import sqlalchemy
 import sqlalchemy.ext.declarative
 import sqlalchemy.orm
-import unittest2
 
 import oauth2client
 import oauth2client.client
@@ -36,26 +36,31 @@ class DummyModel(Base):
         oauth2client.contrib.sqlalchemy.CredentialsType)
 
 
-class TestSQLAlchemyStorage(unittest2.TestCase):
-    def setUp(self):
-        engine = sqlalchemy.create_engine('sqlite://')
-        Base.metadata.create_all(engine)
+@pytest.fixture(scope='function')
+def setup_session(request):
+    engine = sqlalchemy.create_engine('sqlite://')
+    Base.metadata.create_all(engine)
 
-        self.session = sqlalchemy.orm.sessionmaker(bind=engine)
-        self.credentials = oauth2client.client.OAuth2Credentials(
-            access_token='token',
-            client_id='client_id',
-            client_secret='client_secret',
-            refresh_token='refresh_token',
-            token_expiry=datetime.datetime.utcnow(),
-            token_uri=oauth2client.GOOGLE_TOKEN_URI,
-            user_agent='DummyAgent',
-        )
+    request.cls.session = sqlalchemy.orm.sessionmaker(bind=engine)
+    request.cls.credentials = oauth2client.client.OAuth2Credentials(
+        access_token='token',
+        client_id='client_id',
+        client_secret='client_secret',
+        refresh_token='refresh_token',
+        token_expiry=datetime.datetime.utcnow(),
+        token_uri=oauth2client.GOOGLE_TOKEN_URI,
+        user_agent='DummyAgent',
+    )
 
-    def tearDown(self):
-        session = self.session()
+    def fin():
+        session = request.cls.session()
         session.query(DummyModel).filter_by(key=1).delete()
         session.commit()
+    request.addfinalizer(fin)
+
+
+@pytest.mark.usefixtures('setup_session')
+class TestSQLAlchemyStorage:
 
     def compare_credentials(self, result):
         assert result.access_token == self.credentials.access_token
